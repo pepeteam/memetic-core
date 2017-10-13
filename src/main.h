@@ -109,26 +109,6 @@ static const int64_t MIN_RELAY_TX_FEE = MIN_TX_FEE;
 /** No amount larger than this (in satoshi) is valid */
 static const int64_t MAX_MONEY = 16628690 * COIN; // 16,628,690 POW Coins
 
-static const int PIR_LEVELS = 4; // number of entries in PIR_THRESHOLDS
-static const int64_t PIR_PHASEBLOCKS = 365 * 24 * 60; // one year for each phase
-static const int PIR_PHASES = 3; // pepe - three POS reward phases
-
-static const int64_t PIR_THRESHOLDS[PIR_LEVELS] = {
-    0,
-    10000,
-    50000,
-    100000
-};
-
-// pepe stake rate thresholds - % paid at each phase and level
-
-static const int64_t PIR_RATES[PIR_PHASES][PIR_LEVELS] = {
-        {3,4,5,6},
-        {5,4,3,2},
-        {4,3,2,1}
-};
-
-
 inline bool MoneyRange(int64_t nValue) { return (nValue >= 0 && nValue <= MAX_MONEY); }
 /** Threshold for nLockTime: below this value it is interpreted as block number, otherwise as UNIX timestamp. */
 static const unsigned int LOCKTIME_THRESHOLD = 500000000; // Tue Nov  5 00:53:20 1985 UTC

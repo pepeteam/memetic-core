@@ -1527,53 +1527,6 @@ int64_t nSubsidy = 20 * COIN;
 
 }
 
-  int GetPIRRewardPhase(int64_t nHeight)
-  {
-     int64_t Phase0StartHeight = 9000;
-     int phase = (int)( (nHeight-Phase0StartHeight) / PIR_PHASEBLOCKS);
-     return min(PIR_PHASES-1, max(0,phase) );
-  }
-
-
-  int64_t GetPIRRewardCoinYear(int64_t nCoinValue, int64_t nHeight)
-  {
-
-      // work out which phase rates we should use, based on the block height
-      int nPhase = GetPIRRewardPhase(nHeight);
-
-      // find the % band that contains the staked value
-      if (nCoinValue >= PIR_THRESHOLDS[PIR_LEVELS-1] * COIN)
-          return PIR_RATES[nPhase][PIR_LEVELS-1]  * CENT;
-
-      int nLevel = 0;
-      for (int i = 1; i<PIR_LEVELS; i++)
-      {
-          if (nCoinValue < PIR_THRESHOLDS[i] * COIN)
-          {
-                  nLevel = i-1;
-                  break;
-          };
-      };
-
-      // interpolate the PSR for this staked value
-      // a simple way to interpolate this using integer math is to break the range into 100 slices and find the slice where our coin value lies
-      // Rates and Thresholds are integers, CENT and COIN are multiples of 100, so using 100 slices does not introduce any integer math rounding errors
-
-      int64_t nLevelRatePerSlice = (( PIR_RATES[nPhase][nLevel+1] - PIR_RATES[nPhase][nLevel] ) * CENT )  / 100;
-      int64_t nLevelValuePerSlice = (( PIR_THRESHOLDS[nLevel+1] - PIR_THRESHOLDS[nLevel] ) * COIN ) / 100;
-
-      int64_t nTestValue = PIR_THRESHOLDS[nLevel] * COIN;
-
-      int64_t nRewardCoinYear = PIR_RATES[nPhase][nLevel] * CENT;
-      while (nTestValue < nCoinValue)
-      {
-          nTestValue += nLevelValuePerSlice;
-          nRewardCoinYear += nLevelRatePerSlice;
-      };
-
-      return nRewardCoinYear;
-
-  }
 
   int64_t GetProofOfStakeReward(const CBlockIndex* pindexPrev, int64_t nCoinAge, int64_t nFees, int64_t nCoinValue)
   {
