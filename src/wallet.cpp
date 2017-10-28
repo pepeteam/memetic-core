@@ -9,7 +9,7 @@
 #include "coincontrol.h"
 #include "kernel.h"
 #include "net.h"
-#include "timedata.h"
+#include "util.h"
 #include "txdb.h"
 #include "ui_interface.h"
 #include "walletdb.h"
@@ -18,15 +18,12 @@
 #include "spork.h"
 #include "darksend.h"
 #include "instantx.h"
-#include "masternode.h"
+#include "masternodeman.h"
+#include "masternode-payments.h"
 #include "chainparams.h"
 #include "smessage.h"
-#include "main.h"
-#include "util.h"
 
 #include <boost/algorithm/string/replace.hpp>
-#include <boost/range/algorithm.hpp>
-#include <boost/numeric/ublas/matrix.hpp>
 
 using namespace std;
 
@@ -35,16 +32,10 @@ int64_t nTransactionFee = MIN_TX_FEE;
 int64_t nReserveBalance = 0;
 int64_t nMinimumInputValue = 0;
 
-static int64_t GetStakeCombineThreshold() { return 10000 * COIN; }
-static int64_t GetStakeSplitThreshold() { return 1 * GetStakeCombineThreshold(); }
+static int64_t GetStakeCombineThreshold() { return 1000 * COIN; }
+static int64_t GetStakeSplitThreshold() { return 2 * GetStakeCombineThreshold(); }
 
-int64_t gcd(int64_t n,int64_t m) { return m == 0 ? n : gcd(m, n % m); }
-static uint64_t CoinWeightCost(const COutput &out)
-{
-    int64_t nTimeWeight = (int64_t)GetTime() - (int64_t)out.tx->nTime;
-    CBigNum bnCoinDayWeight = CBigNum(out.tx->vout[out.i].nValue) * nTimeWeight / (24 * 60 * 60);
-    return bnCoinDayWeight.getuint64();
-}
+
 
 //////////////////////////////////////////////////////////////////////////////
 //
@@ -167,7 +158,7 @@ bool CWallet::LoadCScript(const CScript& redeemScript)
      * these. Do not add them to the wallet and warn. */
     if (redeemScript.size() > MAX_SCRIPT_ELEMENT_SIZE)
     {
-        std::string strAddr = CBitcoinAddress(redeemScript.GetID()).ToString();
+        std::string strAddr = CPepeCoinAddress(redeemScript.GetID()).ToString();
         LogPrintf("%s: Warning: This wallet contains a redeemScript of size %u which exceeds maximum size %i thus can never be redeemed. Do not use address %s.\n",
             __func__, redeemScript.size(), MAX_SCRIPT_ELEMENT_SIZE, strAddr);
         return true;
@@ -593,8 +584,7 @@ int64_t CWallet::IncOrderPosNext(CWalletDB *pwalletdb)
     return nRet;
 }
 
-
-
+// hopefully we dont need this anymore but just in case
 void CWallet::WalletUpdateSpent(const CTransaction &tx, bool fBlock)
 {
     // Anytime a signature is successfully verified, it's proof the outpoint is spent.
@@ -639,6 +629,7 @@ void CWallet::WalletUpdateSpent(const CTransaction &tx, bool fBlock)
 
     }
 }
+
 
 void CWallet::MarkDirty()
 {
@@ -685,7 +676,6 @@ bool CWallet::AddToWallet(const CWalletTx& wtxIn, bool fFromLoadWallet)
                         // Tolerate times up to the last timestamp in the wallet not more than 5 minutes into the future
                         int64_t latestTolerated = latestNow + 300;
                         const TxItems & txOrdered = wtxOrdered;
-                        
                         for (TxItems::const_reverse_iterator it = txOrdered.rbegin(); it != txOrdered.rend(); ++it)
                         {
                             CWalletTx *const pwtx = (*it).second.first;
@@ -798,7 +788,9 @@ bool CWallet::AddToWalletIfInvolvingMe(const CTransaction& tx, const CBlock* pbl
 
             return AddToWallet(wtx);
         }
-
+//     tempupdate - this fix was added to 2.x daemon
+//        else
+//            WalletUpdateSpent(tx);
     }
     return false;
 }
@@ -1326,22 +1318,19 @@ void CWallet::ReacceptWalletTransactions()
 
 void CWalletTx::RelayWalletTransaction(CTxDB& txdb, std::string strCommand)
 {
-   /* BOOST_FOREACH(const CMerkleTx& tx, vtxPrev)
-    {
-        if (!(tx.IsCoinBase() || tx.IsCoinStake()))
-        {
-            uint256 hash = tx.GetHash();
-            if (!txdb.ContainsTx(hash))
-                RelayTransaction((CTransaction)tx, hash);
-        }
-    } */
     if (!(IsCoinBase() || IsCoinStake()))
     {
-        uint256 hash = GetHash();
-        if (!txdb.ContainsTx(hash))
-        {
-            LogPrintf("Relaying wtx %s\n", hash.ToString());
-            RelayTransaction((CTransaction)*this, hash);
+        if (GetDepthInMainChain() == 0) {
+            uint256 hash = GetHash();
+            if(strCommand == "txlreq"){
+                LogPrintf("Relaying txlreq %s\n", hash.ToString());
+                mapTxLockReq.insert(make_pair(hash, ((CTransaction)*this)));
+                CreateNewLock(((CTransaction)*this));
+                RelayTransactionLockReq((CTransaction)*this, true);
+            } else {
+                LogPrintf("Relaying wtx %s\n", hash.ToString());
+                RelayTransaction((CTransaction)*this, hash);
+            }
         }
     }
 }
@@ -1618,7 +1607,7 @@ CAmount CWallet::GetWatchOnlyBalance() const
 {
     CAmount nTotal = 0;
     {
-        LOCK(cs_wallet);
+        LOCK2(cs_main, cs_wallet);
         for (map<uint256, CWalletTx>::const_iterator it = mapWallet.begin(); it != mapWallet.end(); ++it)
         {
             const CWalletTx* pcoin = &(*it).second;
@@ -1647,7 +1636,7 @@ CAmount CWallet::GetUnconfirmedWatchOnlyBalance() const
 {
     CAmount nTotal = 0;
     {
-        LOCK(cs_wallet);
+        LOCK2(cs_main, cs_wallet);
         for (map<uint256, CWalletTx>::const_iterator it = mapWallet.begin(); it != mapWallet.end(); ++it)
         {
             const CWalletTx* pcoin = &(*it).second;
@@ -1662,7 +1651,7 @@ CAmount CWallet::GetImmatureWatchOnlyBalance() const
 {
     CAmount nTotal = 0;
     {
-        LOCK(cs_wallet);
+        LOCK2(cs_main, cs_wallet);
         for (map<uint256, CWalletTx>::const_iterator it = mapWallet.begin(); it != mapWallet.end(); ++it)
         {
             const CWalletTx* pcoin = &(*it).second;
@@ -1756,10 +1745,6 @@ void CWallet::AvailableCoinsMN(vector<COutput>& vCoins, bool fOnlyConfirmed, con
             if (nDepth <= 0) // TXNOTE: coincontrol fix / ignore 0 confirm
                 continue;
 
-           /* for (unsigned int i = 0; i < pcoin->vout.size(); i++)
-                if (!(pcoin->IsSpent(i)) && IsMine(pcoin->vout[i]) && pcoin->vout[i].nValue >= nMinimumInputValue &&
-                (!coinControl || !coinControl->HasSelected() || coinControl->IsSelected((*it).first, i)))
-                    vCoins.push_back(COutput(pcoin, i, nDepth));*/
             // do not use IX for inputs that have less then 6 blockchain confirmations
             if (useIX && nDepth < 10)
                 continue;
@@ -1779,18 +1764,12 @@ void CWallet::AvailableCoinsMN(vector<COutput>& vCoins, bool fOnlyConfirmed, con
                 }
                 if(!found) continue;
 
-                //isminetype mine = IsMine(pcoin->vout[i]);
-                bool mine = IsMine(pcoin->vout[i]);
+                isminetype mine = IsMine(pcoin->vout[i]);
 
-                //if (!(IsSpent(wtxid, i)) && mine != ISMINE_NO &&
-                //    !IsLockedCoin((*it).first, i) && pcoin->vout[i].nValue > 0 &&
-                //    (!coinControl || !coinControl->HasSelected() || coinControl->IsSelected((*it).first, i)))
-                //        vCoins.push_back(COutput(pcoin, i, nDepth, (mine & ISMINE_SPENDABLE) != ISMINE_NO));
-                //if (!(IsSpent(wtxid, i)) && mine &&
-                if (!(pcoin->IsSpent(i)) &&
+                if (!(pcoin->IsSpent(i)) && mine != ISMINE_NO &&
                     !IsLockedCoin((*it).first, i) && pcoin->vout[i].nValue > 0 &&
                     (!coinControl || !coinControl->HasSelected() || coinControl->IsSelected((*it).first, i)))
-                        vCoins.push_back(COutput(pcoin, i, nDepth, mine));
+                        vCoins.push_back(COutput(pcoin, i, nDepth, (mine & ISMINE_SPENDABLE) != ISMINE_NO));
             }
         }
     }
@@ -1802,9 +1781,17 @@ void CWallet::AvailableCoinsForStaking(vector<COutput>& vCoins, unsigned int nSp
 
     {
         LOCK2(cs_main, cs_wallet);
+        CBlockIndex* pindexPrev = pindexBest;
+
         int nStakeMinConfirmations = 360;
+
         if(pindexBest->nHeight >= PEPE_STAKE_WINTER_SWITCH_HEIGHT || Params().NetworkID() == CChainParams::TESTNET)
+        //if((pindexBest->nHeight+1) >= PEPE_STAKE_WINTER_SWITCH_HEIGHT || Params().NetworkID() == CChainParams::TESTNET)
             nStakeMinConfirmations = 60;
+        if(pindexPrev->nHeight+1 > PEPE_KEKDAQ_MID_FIX_HEIGHT)
+            nStakeMinConfirmations = 600;
+        if(pindexPrev->nHeight+1 > PEPE_STAKE_CONF_HEIGHT)
+            nStakeMinConfirmations = 360;
 
         for (map<uint256, CWalletTx>::const_iterator it = mapWallet.begin(); it != mapWallet.end(); ++it)
         {
@@ -1905,254 +1892,6 @@ static void ApproximateBestSubset(vector<pair<int64_t, pair<const CWalletTx*,uns
             }
         }
     }
-}
-
-struct LargerOrEqualThanThreshold
-{
-    int64_t threshold;
-    LargerOrEqualThanThreshold(int64_t threshold) : threshold(threshold) {}
-    bool operator()(pair<pair<int64_t,int64_t>,pair<const CWalletTx*,unsigned int> > const &v) const { return v.first.first >= threshold; }
-};
-
-bool CWallet::SelectCoinsMinConfByCoinAge(int64_t nTargetValue, unsigned int nSpendTime, int nConfMine, int nConfTheirs, std::vector<COutput> vCoins, set<pair<const CWalletTx*,unsigned int> >& setCoinsRet, int64_t& nValueRet) const
-{
-    setCoinsRet.clear();
-    nValueRet = 0;
-
-
-    vector<pair<COutput, uint64_t> > mCoins;
-    BOOST_FOREACH(const COutput& out, vCoins)
-    {
-        if (!out.fSpendable)
-            continue;
-        mCoins.push_back(std::make_pair(out, CoinWeightCost(out)));
-    }
-
-    // List of values less than target
-    pair<pair<int64_t,int64_t>, pair<const CWalletTx*,unsigned int> > coinLowestLarger;
-    coinLowestLarger.first.second = std::numeric_limits<int64_t>::max();
-    coinLowestLarger.second.first = NULL;
-    vector<pair<pair<int64_t,int64_t>,pair<const CWalletTx*,unsigned int> > > vValue;
-    int64_t nTotalLower = 0;
-    boost::sort(mCoins, boost::bind(&std::pair<COutput, uint64_t>::second, _1) < boost::bind(&std::pair<COutput, uint64_t>::second, _2));
-
-    BOOST_FOREACH(const PAIRTYPE(COutput, uint64_t)& output, mCoins)
-    {
-        const CWalletTx *pcoin = output.first.tx;
-
-        if (output.first.nDepth < (pcoin->IsFromMe(ISMINE_ALL) ? nConfMine : nConfTheirs))
-            continue;
-
-        int i = output.first.i;
-
-        // Follow the timestamp rules
-        if (pcoin->nTime > nSpendTime)
-            continue;
-
-        int64_t n = pcoin->vout[i].nValue;
-
-        pair<pair<int64_t,int64_t>,pair<const CWalletTx*,unsigned int> > coin = make_pair(make_pair(n,output.second),make_pair(pcoin, i));
-
-        if (n < nTargetValue + CENT)
-        {
-            vValue.push_back(coin);
-            nTotalLower += n;
-        }
-        else if (output.second < (uint64_t)coinLowestLarger.first.second)
-        {
-            coinLowestLarger = coin;
-        }
-    }
-
-    if (nTotalLower < nTargetValue)
-    {
-        if (coinLowestLarger.second.first == NULL)
-            return false;
-        setCoinsRet.insert(coinLowestLarger.second);
-        nValueRet += coinLowestLarger.first.first;
-        return true;
-    }
-
-    // Calculate dynamic programming matrix
-    int64_t nTotalValue = vValue[0].first.first;
-    int64_t nGCD = vValue[0].first.first;
-    for (unsigned int i = 1; i < vValue.size(); ++i)
-    {
-        nGCD = gcd(vValue[i].first.first, nGCD);
-        nTotalValue += vValue[i].first.first;
-    }
-    nGCD = gcd(nTargetValue, nGCD);
-    int64_t denom = nGCD;
-    const int64_t k = 25;
-    const int64_t approx = int64_t(vValue.size() * (nTotalValue - nTargetValue)) / k;
-    if (approx > nGCD)
-    {
-        denom = approx; // apply approximation
-    }
-    if (fDebug) cerr << "nGCD " << nGCD << " denom " << denom << " k " << k << endl;
-
-    if (nTotalValue == nTargetValue)
-    {
-        for (unsigned int i = 0; i < vValue.size(); ++i)
-        {
-            setCoinsRet.insert(vValue[i].second);
-        }
-        nValueRet = nTotalValue;
-        return true;
-    }
-
-    size_t nBeginBundles = vValue.size();
-    size_t nTotalCoinValues = vValue.size();
-    size_t nBeginCoinValues = 0;
-    int64_t costsum = 0;
-    vector<vector<pair<pair<int64_t,int64_t>,pair<const CWalletTx*,unsigned int> > >::iterator> vZeroValueBundles;
-    if (denom != nGCD)
-    {
-        // All coin outputs that with zero value will always be added by the dynamic programming routine
-        // So we collect them into bundles of value denom
-        vector<pair<pair<int64_t,int64_t>,pair<const CWalletTx*,unsigned int> > >::iterator itZeroValue = std::stable_partition(vValue.begin(), vValue.end(), LargerOrEqualThanThreshold(denom));
-        vZeroValueBundles.push_back(itZeroValue);
-        pair<int64_t, int64_t> pBundle = make_pair(0, 0);
-        nBeginBundles = itZeroValue - vValue.begin();
-        nTotalCoinValues = nBeginBundles;
-        while (itZeroValue != vValue.end())
-        {
-            pBundle.first += itZeroValue->first.first;
-            pBundle.second += itZeroValue->first.second;
-            itZeroValue++;
-            if (pBundle.first >= denom)
-            {
-                vZeroValueBundles.push_back(itZeroValue);
-                vValue[nTotalCoinValues].first = pBundle;
-                pBundle = make_pair(0, 0);
-                nTotalCoinValues++;
-            }
-        }
-        // We need to recalculate the total coin value due to truncation of integer division
-        nTotalValue = 0;
-        for (unsigned int i = 0; i < nTotalCoinValues; ++i)
-        {
-            nTotalValue += vValue[i].first.first / denom;
-        }
-        // Check if dynamic programming is still applicable with the approximation
-        if (nTargetValue/denom >= nTotalValue)
-        {
-            // We lose too much coin value through the approximation, i.e. the residual of the previous recalculation is too large
-            // Since the partitioning of the previously sorted list is stable, we can just pick the first coin outputs in the list until we have a valid target value
-            for (; nBeginCoinValues < nTotalCoinValues && (nTargetValue - nValueRet)/denom >= nTotalValue; ++nBeginCoinValues)
-            {
-                if (nBeginCoinValues >= nBeginBundles)
-                {
-                    if (fDebug) cerr << "prepick bundle item " << FormatMoney(vValue[nBeginCoinValues].first.first) << " normalized " << vValue[nBeginCoinValues].first.first / denom << " cost " << vValue[nBeginCoinValues].first.second << endl;
-                    const size_t nBundle = nBeginCoinValues - nBeginBundles;
-                    for (vector<pair<pair<int64_t,int64_t>,pair<const CWalletTx*,unsigned int> > >::iterator it = vZeroValueBundles[nBundle]; it != vZeroValueBundles[nBundle + 1]; ++it)
-                    {
-                        setCoinsRet.insert(it->second);
-                    }
-                }
-                else
-                {
-                    if (fDebug) cerr << "prepicking " << FormatMoney(vValue[nBeginCoinValues].first.first) << " normalized " << vValue[nBeginCoinValues].first.first / denom << " cost " << vValue[nBeginCoinValues].first.second << endl;
-                    setCoinsRet.insert(vValue[nBeginCoinValues].second);
-                }
-                nTotalValue -= vValue[nBeginCoinValues].first.first / denom;
-                nValueRet += vValue[nBeginCoinValues].first.first;
-                costsum += vValue[nBeginCoinValues].first.second;
-            }
-            if (nValueRet >= nTargetValue)
-            {
-                    if (fDebug) cerr << "Done without dynprog: " << "requested " << FormatMoney(nTargetValue) << "\tnormalized " << nTargetValue/denom + (nTargetValue % denom != 0 ? 1 : 0) << "\tgot " << FormatMoney(nValueRet) << "\tcost " << costsum << endl;
-                    return true;
-            }
-        }
-    }
-    else
-    {
-        nTotalValue /= denom;
-    }
-
-    uint64_t nAppend = 1;
-    if ((nTargetValue - nValueRet) % denom != 0)
-    {
-        // We need to decrease the capacity because of integer truncation
-        nAppend--;
-    }
-
-    // The capacity (number of columns) corresponds to the amount of coin value we are allowed to discard
-    boost::numeric::ublas::matrix<uint64_t> M((nTotalCoinValues - nBeginCoinValues) + 1, (nTotalValue - (nTargetValue - nValueRet)/denom) + nAppend, std::numeric_limits<int64_t>::max());
-    boost::numeric::ublas::matrix<unsigned int> B((nTotalCoinValues - nBeginCoinValues) + 1, (nTotalValue - (nTargetValue - nValueRet)/denom) + nAppend);
-    for (unsigned int j = 0; j < M.size2(); ++j)
-    {
-        M(0,j) = 0;
-    }
-    for (unsigned int i = 1; i < M.size1(); ++i)
-    {
-        uint64_t nWeight = vValue[nBeginCoinValues + i - 1].first.first / denom;
-        uint64_t nValue = vValue[nBeginCoinValues + i - 1].first.second;
-        //cerr << "Weight " << nWeight << " Value " << nValue << endl;
-        for (unsigned int j = 0; j < M.size2(); ++j)
-        {
-            B(i, j) = j;
-            if (nWeight <= j)
-            {
-                uint64_t nStep = M(i - 1, j - nWeight) + nValue;
-                if (M(i - 1, j) >= nStep)
-                {
-                    M(i, j) = M(i - 1, j);
-                }
-                else
-                {
-                    M(i, j) = nStep;
-                    B(i, j) = j - nWeight;
-                }
-            }
-            else
-            {
-                M(i, j) = M(i - 1, j);
-            }
-        }
-    }
-    // Trace back optimal solution
-    int64_t nPrev = M.size2() - 1;
-    for (unsigned int i = M.size1() - 1; i > 0; --i)
-    {
-        //cerr << i - 1 << " " << vValue[i - 1].second.second << " " << vValue[i - 1].first.first << " " << vValue[i - 1].first.second << " " << nTargetValue << " " << nPrev << " " << (nPrev == B(i, nPrev) ? "XXXXXXXXXXXXXXX" : "") << endl;
-        if (nPrev == B(i, nPrev))
-        {
-            const size_t nValue = nBeginCoinValues + i - 1;
-            // Check if this is a bundle
-            if (nValue >= nBeginBundles)
-            {
-                if (fDebug) cerr << "pick bundle item " << FormatMoney(vValue[nValue].first.first) << " normalized " << vValue[nValue].first.first / denom << " cost " << vValue[nValue].first.second << endl;
-                const size_t nBundle = nValue - nBeginBundles;
-                for (vector<pair<pair<int64_t,int64_t>,pair<const CWalletTx*,unsigned int> > >::iterator it = vZeroValueBundles[nBundle]; it != vZeroValueBundles[nBundle + 1]; ++it)
-                {
-                    setCoinsRet.insert(it->second);
-                }
-            }
-            else
-            {
-                if (fDebug) cerr << "pick " << nValue << " value " << FormatMoney(vValue[nValue].first.first) << " normalized " << vValue[nValue].first.first / denom << " cost " << vValue[nValue].first.second << endl;
-                setCoinsRet.insert(vValue[nValue].second);
-            }
-            nValueRet += vValue[nValue].first.first;
-            costsum += vValue[nValue].first.second;
-        }
-        nPrev = B(i, nPrev);
-    }
-    if (nValueRet < nTargetValue && !vZeroValueBundles.empty())
-    {
-        // If we get here it means that there are either not sufficient funds to pay the transaction or that there are small coin outputs left that couldn't be bundled
-        // We try to fulfill the request by adding these small coin outputs
-        for (vector<pair<pair<int64_t,int64_t>,pair<const CWalletTx*,unsigned int> > >::iterator it = vZeroValueBundles.back(); it != vValue.end() && nValueRet < nTargetValue; ++it)
-        {
-             setCoinsRet.insert(it->second);
-             nValueRet += it->first.first;
-        }
-    }
-    if (fDebug) cerr << "requested " << FormatMoney(nTargetValue) << "\tnormalized " << nTargetValue/denom + (nTargetValue % denom != 0 ? 1 : 0) << "\tgot " << FormatMoney(nValueRet) << "\tcost " << costsum << endl;
-    if (fDebug) cerr << "M " << M.size1() << "x" << M.size2() << "; vValue.size() = " << vValue.size() << endl;
-    return true;
 }
 
 // TODO: find appropriate place for this sort function
@@ -2339,7 +2078,7 @@ bool CWallet::SelectCoins(int64_t nTargetValue, unsigned int nSpendTime, set<pai
         return (nValueRet >= nTargetValue);
     }
 
-    boost::function<bool (const CWallet*, int64_t, unsigned int, int, int, std::vector<COutput>, std::set<std::pair<const CWalletTx*,unsigned int> >&, int64_t&)> f = fMinimizeCoinAge ? &CWallet::SelectCoinsMinConfByCoinAge : &CWallet::SelectCoinsMinConf;
+    boost::function<bool (const CWallet*, int64_t, unsigned int, int, int, std::vector<COutput>, std::set<std::pair<const CWalletTx*,unsigned int> >&, int64_t&)> f = &CWallet::SelectCoinsMinConf;
 
     return (f(this, nTargetValue, nSpendTime, 1, 10, vCoins, setCoinsRet, nValueRet) ||
             f(this, nTargetValue, nSpendTime, 1, 1, vCoins, setCoinsRet, nValueRet) ||
@@ -2884,30 +2623,6 @@ bool CWallet::CreateTransaction(const vector<pair<CScript, int64_t> >& vecSend, 
     return true;
 }
 
-bool CWallet::CreateTransactionWall(CScript scriptPubKey, int64_t nValue, std::string& sNarr, CWalletTx& wtxNew, CReserveKey& reservekey, int64_t& nFeeRet, std::string msg, const CCoinControl* coinControl)
-{
-    vector< pair<CScript, int64_t> > vecSend;
-    vecSend.push_back(make_pair(scriptPubKey, nValue));
-
-    CScript scriptWall = CScript() << OP_RETURN << vector<unsigned char>(msg.begin(), msg.end());
-    vecSend.push_back(make_pair(scriptWall, 0));
-
-
-    // -- CreateTransaction won't place change between value and narr output.
-    //    narration output will be for preceding output
-
-    int nChangePos;
-    std::string strFailReason;
-    bool rv = CreateTransaction(vecSend, wtxNew, reservekey, nFeeRet, nChangePos, strFailReason, coinControl);
-    if(!strFailReason.empty())
-    {
-        LogPrintf("CreateTransaction(): ERROR: %s\n", strFailReason);
-        return false;
-    }
-    // -- narration will be added to mapValue later in FindStealthTransactions From CommitTransaction
-    return rv;
-}
-
 bool CWallet::CreateTransaction(CScript scriptPubKey, int64_t nValue, std::string& sNarr, CWalletTx& wtxNew, CReserveKey& reservekey, int64_t& nFeeRet, const CCoinControl* coinControl)
 {
     vector< pair<CScript, int64_t> > vecSend;
@@ -3094,7 +2809,7 @@ bool CWallet::UnlockStealthAddresses(const CKeyingMaterial& vMasterKeyIn)
             continue;
 
         CKeyID ckid = pubKey.GetID();
-        CBitcoinAddress addr(ckid);
+        CPepeCoinAddress addr(ckid);
 
         StealthKeyMetaMap::iterator mi = mapStealthKeyMeta.find(ckid);
         if (mi == mapStealthKeyMeta.end())
@@ -3182,7 +2897,7 @@ bool CWallet::UnlockStealthAddresses(const CKeyingMaterial& vMasterKeyIn)
         if (fDebug)
         {
             CKeyID keyID = cpkT.GetID();
-            CBitcoinAddress coinAddress(keyID);
+            CPepeCoinAddress coinAddress(keyID);
             printf("Adding secret to key %s.\n", coinAddress.ToString().c_str());
         };
 
@@ -3382,7 +3097,7 @@ bool CWallet::SendStealthMoneyToDestination(CStealthAddress& sxAddress, int64_t 
 
     CKeyID ckidTo = cpkTo.GetID();
 
-    CBitcoinAddress addrTo(ckidTo);
+    CPepeCoinAddress addrTo(ckidTo);
 
     if (SecretToPublicKey(ephem_secret, ephem_pubkey) != 0)
     {
@@ -3392,9 +3107,9 @@ bool CWallet::SendStealthMoneyToDestination(CStealthAddress& sxAddress, int64_t 
 
     if (fDebug)
     {
-        LogPrintf("Stealth send to generated pubkey %"PRIszu": %s\n", pkSendTo.size(), HexStr(pkSendTo).c_str());
+        LogPrintf("Stealth send to generated pubkey %" PRIszu": %s\n", pkSendTo.size(), HexStr(pkSendTo).c_str());
         LogPrintf("hash %s\n", addrTo.ToString().c_str());
-        LogPrintf("ephem_pubkey %"PRIszu": %s\n", ephem_pubkey.size(), HexStr(ephem_pubkey).c_str());
+        LogPrintf("ephem_pubkey %" PRIszu": %s\n", ephem_pubkey.size(), HexStr(ephem_pubkey).c_str());
     };
 
     std::vector<unsigned char> vchNarr;
@@ -3548,7 +3263,7 @@ bool CWallet::FindStealthTransactions(const CTransaction& tx, mapValue_t& mapNar
                     std::vector<uint8_t> vchEmpty;
                     AddCryptedKey(cpkE, vchEmpty);
                     CKeyID keyId = cpkE.GetID();
-                    CBitcoinAddress coinAddress(keyId);
+                    CPepeCoinAddress coinAddress(keyId);
                     std::string sLabel = it->Encoded();
                     SetAddressBookName(keyId, sLabel);
 
@@ -3611,7 +3326,7 @@ bool CWallet::FindStealthTransactions(const CTransaction& tx, mapValue_t& mapNar
                     CKeyID keyID = cpkT.GetID();
                     if (fDebug)
                     {
-                        CBitcoinAddress coinAddress(keyID);
+                        CPepeCoinAddress coinAddress(keyID);
                         printf("Adding key %s.\n", coinAddress.ToString().c_str());
                     };
 
@@ -3658,6 +3373,8 @@ bool CWallet::FindStealthTransactions(const CTransaction& tx, mapValue_t& mapNar
 
 uint64_t CWallet::GetStakeWeight() const
 {
+    CBlockIndex* pindexPrev = pindexBest;
+
     // Choose coins to use
     int64_t nBalance = GetBalance();
 
@@ -3680,9 +3397,15 @@ uint64_t CWallet::GetStakeWeight() const
     CTxDB txdb("r");
 
     LOCK2(cs_main, cs_wallet);
+    
     int nStakeMinConfirmations = 360;
-    if(pindexBest->nHeight > PEPE_STAKE_WINTER_SWITCH_HEIGHT)
-        nStakeMinConfirmations = 60;
+    
+    if(pindexBest->nHeight+1 >= PEPE_STAKE_WINTER_SWITCH_HEIGHT || Params().NetworkID() == CChainParams::TESTNET)
+            nStakeMinConfirmations = 60;
+    if((pindexPrev->nHeight+1) > PEPE_KEKDAQ_MID_FIX_HEIGHT)
+            nStakeMinConfirmations = 600;
+    if((pindexPrev->nHeight+1) > PEPE_STAKE_CONF_HEIGHT)
+            nStakeMinConfirmations = 360;
 
     BOOST_FOREACH(PAIRTYPE(const CWalletTx*, unsigned int) pcoin, setCoins)
     {
@@ -3854,159 +3577,160 @@ bool CWallet::CreateCoinStake(const CKeyStore& keystore, unsigned int nBits, int
 
         nCredit += nReward;
     }
-
+    
     int64_t blockValue = nCredit;
-
+    
     // PepeCoin Rebrand Dev Reward
     if(((Params().NetworkID() != CChainParams::TESTNET && pindexPrev->nHeight+1 >= PEPE_REBRAND_HEIGHT) && (Params().NetworkID() != CChainParams::TESTNET && pindexPrev->nHeight+1 <= PEPE_KEKDAQ_MID_FIX_HEIGHT))
-        || ((Params().NetworkID() == CChainParams::TESTNET && pindexPrev->nHeight+1 >= PEPE_REBRAND_HEIGHT_TESTNET) && (Params().NetworkID() == CChainParams::TESTNET && pindexPrev->nHeight+1 <= PEPE_KEKDAQ_MID_HEIGHT_TESTNET)))
-    {
-        // add tx outputs for 3 dev reward splits
-        int payments = txNew.vout.size() + 3;
-        txNew.vout.resize(payments);
-
-        CBitcoinAddress addrDevOne;
-        addrDevOne.SetString(DecodeBase64(PEPE_REBRAND_DEV_1));
-        CScript payeeDevOne = GetScriptForDestination(addrDevOne.Get());
-        CBitcoinAddress addrDevTwo;
-        addrDevTwo.SetString(DecodeBase64(PEPE_REBRAND_DEV_2));
-        CScript payeeDevTwo = GetScriptForDestination(addrDevTwo.Get());
-        CBitcoinAddress addrDevThree;
-        addrDevThree.SetString(DecodeBase64(PEPE_REBRAND_DEV_3));
-        CScript payeeDevThree = GetScriptForDestination(addrDevThree.Get());
-
-        txNew.vout[payments-1].scriptPubKey = payeeDevOne;
-        txNew.vout[payments-1].nValue = 0;
-        txNew.vout[payments-2].scriptPubKey = payeeDevTwo;
-        txNew.vout[payments-2].nValue = 0;
-        txNew.vout[payments-3].scriptPubKey = payeeDevThree;
-        txNew.vout[payments-3].nValue = 0;                
-
-        int64_t devPayment = 0.02 * nReward; // 2% of stake reward per dev payment
-        
-        if (pindexPrev->nHeight+1 > PEPE_REBRAND_PF_HEIGHT)
-            devPayment = 0.04 * nReward; // 4% per dev reward, approx 38k coins/yr x3
-
-        if (pindexPrev->nHeight+1 == PEPE_REBRAND_PF_HEIGHT)
-            devPayment = PEPE_DEV_GRANT;
-        if (pindexPrev->nHeight+1 == PEPE_KEKDAQ_MID_FIX_HEIGHT)
-            devPayment = PEPE_DEV_GRANT_MID;
-        if (pindexPrev->nHeight+1 == PEPE_IPFSMN_FNL_HEIGHT)
-            devPayment = PEPE_DEV_GRANT_FINAL;            
-        
-
-        // Set output amount
-        if(txNew.vout.size() == 6) // 2 stake outputs, stake was split, plus 3 dev payments
-        {
-            txNew.vout[payments-1].nValue = devPayment;
-            txNew.vout[payments-2].nValue = devPayment;
-            txNew.vout[payments-3].nValue = devPayment;
-            blockValue -= (3 * devPayment);
-            txNew.vout[1].nValue = (blockValue / 2 / CENT) * CENT;
-            txNew.vout[2].nValue = blockValue - txNew.vout[1].nValue;
-        }
-        else if(txNew.vout.size() == 5) // only 1 stake output, was not split, plus 3 dev payments
-        {
-            txNew.vout[payments-1].nValue = devPayment;
-            txNew.vout[payments-2].nValue = devPayment;
-            txNew.vout[payments-3].nValue = devPayment;
-            blockValue -= (3 * devPayment);
-            txNew.vout[1].nValue = blockValue;
-        }
-        else
-        {
-            // this should never happen
-            LogPrintf("WARNING: Incorrect post-rebrand stake tx outputs count!\n");
-        }
-    }
-    else
-    {
-        // Masternode Payments
-        int payments = 1;
-        // start masternode payments
-        bool bMasterNodePayment = false; // note was false, set true to test  set to false until MN start 4/14/06
-
-        if ( Params().NetworkID() == CChainParams::TESTNET ){
-            if (pindexPrev->nHeight+1 > PEPE_KEKDAQ_MID_HEIGHT_TESTNET ){
-                bMasterNodePayment = true;
-            }
-        }else{
-            if (pindexPrev->nHeight+1 > PEPE_KEKDAQ_MID_HEIGHT){
-                bMasterNodePayment = true;
-            }
-        }
-
-        CScript payee;
-        bool hasPayment = true;
-        if(bMasterNodePayment) {
-            //spork            
-            int winningNode = GetCurrentMasterNode(1);
-            if(winningNode >= 0){
-                payee =GetScriptForDestination(vecMasternodes[winningNode].pubkey.GetID());
-            } else {
-                LogPrintf("CreateCoinStake: Failed to detect masternode to pay\n");
-                // pay the burn address if it can't detect
-                std::string burnAddy = "PKekDaqXXXXXXXXXXXXXXXXXXXXXWH8yfH";
-                CBitcoinAddress burnAddr;
-                burnAddr.SetString(burnAddy);
-                payee = GetScriptForDestination(burnAddr.Get());
-            }
-            
-        }
-
-        if(hasPayment){
-            payments = txNew.vout.size() + 4;
-            txNew.vout.resize(payments);
-
-            txNew.vout[payments-4].scriptPubKey = payee;
-            txNew.vout[payments-4].nValue = 0;
-
-            CTxDestination address1;
-            ExtractDestination(payee, address1);
-            CBitcoinAddress address2(address1);
-
-            LogPrintf("Masternode payment to %s\n", address2.ToString().c_str());
-        }
-        else
+            || ((Params().NetworkID() == CChainParams::TESTNET && pindexPrev->nHeight+1 >= PEPE_REBRAND_HEIGHT_TESTNET) && (Params().NetworkID() == CChainParams::TESTNET && pindexPrev->nHeight+1 <= PEPE_KEKDAQ_MID_HEIGHT_TESTNET)))
         {
             // add tx outputs for 3 dev reward splits
             int payments = txNew.vout.size() + 3;
             txNew.vout.resize(payments);
+    
+            CBitcoinAddress addrDevOne;
+            addrDevOne.SetString(DecodeBase64(PEPE_REBRAND_DEV_1));
+            CScript payeeDevOne = GetScriptForDestination(addrDevOne.Get());
+            CBitcoinAddress addrDevTwo;
+            addrDevTwo.SetString(DecodeBase64(PEPE_REBRAND_DEV_2));
+            CScript payeeDevTwo = GetScriptForDestination(addrDevTwo.Get());
+            CBitcoinAddress addrDevThree;
+            addrDevThree.SetString(DecodeBase64(PEPE_REBRAND_DEV_3));
+            CScript payeeDevThree = GetScriptForDestination(addrDevThree.Get());
+    
+            txNew.vout[payments-1].scriptPubKey = payeeDevOne;
+            txNew.vout[payments-1].nValue = 0;
+            txNew.vout[payments-2].scriptPubKey = payeeDevTwo;
+            txNew.vout[payments-2].nValue = 0;
+            txNew.vout[payments-3].scriptPubKey = payeeDevThree;
+            txNew.vout[payments-3].nValue = 0;                
+    
+            int64_t devPayment = 0.02 * nReward; // 2% of stake reward per dev payment
+            
+            if (pindexPrev->nHeight+1 > PEPE_REBRAND_PF_HEIGHT)
+                devPayment = 0.04 * nReward; // 4% per dev reward, approx 38k coins/yr x3
+    
+            if (pindexPrev->nHeight+1 == PEPE_REBRAND_PF_HEIGHT)
+                devPayment = PEPE_DEV_GRANT;
+            if (pindexPrev->nHeight+1 == PEPE_KEKDAQ_MID_FIX_HEIGHT)
+                devPayment = PEPE_DEV_GRANT_MID;
+            if (pindexPrev->nHeight+1 == PEPE_IPFSMN_FNL_HEIGHT)
+                devPayment = PEPE_DEV_GRANT_FINAL;            
+            
+    
+            // Set output amount
+            if(txNew.vout.size() == 6) // 2 stake outputs, stake was split, plus 3 dev payments
+            {
+                txNew.vout[payments-1].nValue = devPayment;
+                txNew.vout[payments-2].nValue = devPayment;
+                txNew.vout[payments-3].nValue = devPayment;
+                blockValue -= (3 * devPayment);
+                txNew.vout[1].nValue = (blockValue / 2 / CENT) * CENT;
+                txNew.vout[2].nValue = blockValue - txNew.vout[1].nValue;
+            }
+            else if(txNew.vout.size() == 5) // only 1 stake output, was not split, plus 3 dev payments
+            {
+                txNew.vout[payments-1].nValue = devPayment;
+                txNew.vout[payments-2].nValue = devPayment;
+                txNew.vout[payments-3].nValue = devPayment;
+                blockValue -= (3 * devPayment);
+                txNew.vout[1].nValue = blockValue;
+            }
+            else
+            {
+                // this should never happen
+                LogPrintf("WARNING: Incorrect post-rebrand stake tx outputs count!\n");
+            }
+       }
+    else
+    {
+    // Masternode Payments
+    int payments = 1;
+    // start masternode payments
+    bool bMasterNodePayment = false; // note was false, set true to test
+    
+    if ( Params().NetworkID() == CChainParams::TESTNET ){
+        if (pindexPrev->nHeight+1 > PEPE_KEKDAQ_MID_HEIGHT_TESTNET ){
+            bMasterNodePayment = true;
         }
+    }else{
+        if (pindexPrev->nHeight+1 > PEPE_KEKDAQ_MID_HEIGHT){
+            bMasterNodePayment = true;
+        }
+    }
 
-        CBitcoinAddress addrDevOne;
-        addrDevOne.SetString(DecodeBase64(PEPE_REBRAND_DEV_1));
-        CScript payeeDevOne = GetScriptForDestination(addrDevOne.Get());
-        CBitcoinAddress addrDevTwo;
-        addrDevTwo.SetString(DecodeBase64(PEPE_REBRAND_DEV_2));
-        CScript payeeDevTwo = GetScriptForDestination(addrDevTwo.Get());
-        CBitcoinAddress addrDevThree;
-        addrDevThree.SetString(DecodeBase64(PEPE_REBRAND_DEV_3));
-        CScript payeeDevThree = GetScriptForDestination(addrDevThree.Get());
+    CScript payee;
+    CTxIn vin;
+    bool hasPayment = true;
+    if(bMasterNodePayment) {
+        //spork
+        if(!masternodePayments.GetBlockPayee(pindexPrev->nHeight+1, payee, vin)){
+            CMasternode* winningNode = mnodeman.GetCurrentMasterNode(1);
+            if(winningNode){
+                payee = GetScriptForDestination(winningNode->pubkey.GetID());
+            } else {
+                return error("CreateCoinStake: Failed to detect masternode to pay\n");
+            }
+        }
+    }
 
-        txNew.vout[payments-1].scriptPubKey = payeeDevOne;
-        txNew.vout[payments-1].nValue = 0;
-        txNew.vout[payments-2].scriptPubKey = payeeDevTwo;
-        txNew.vout[payments-2].nValue = 0;
-        txNew.vout[payments-3].scriptPubKey = payeeDevThree;
-        txNew.vout[payments-3].nValue = 0;                
+    if(hasPayment){
+        payments = txNew.vout.size() + 4;
+        txNew.vout.resize(payments);
 
-        int64_t devPayment = 0.02 * nReward; // 2% of stake reward per dev payment
+        txNew.vout[payments-4].scriptPubKey = payee;
+        txNew.vout[payments-4].nValue = 0;
 
-        if (pindexPrev->nHeight+1 > PEPE_REBRAND_PF_HEIGHT)
-            devPayment = 0.04 * nReward; // 4% per dev reward, approx 38k coins/yr x3        
-        if (pindexPrev->nHeight+1 == PEPE_REBRAND_PF_HEIGHT)
-            devPayment = PEPE_DEV_GRANT;
-        if (pindexPrev->nHeight+1 == PEPE_KEKDAQ_MID_FIX_HEIGHT)
-            devPayment = PEPE_DEV_GRANT_MID;
-        if (pindexPrev->nHeight+1 == PEPE_IPFSMN_FNL_HEIGHT)
-            devPayment = PEPE_DEV_GRANT_FINAL;            
-        
+        CTxDestination address1;
+        ExtractDestination(payee, address1);
+        CPepeCoinAddress address2(address1);
 
-        int64_t masternodePayment = (nReward - (3 * devPayment)) * 0.375; //37.5% //GetMasternodePayment(pindexPrev->nHeight+1, nReward);
+        LogPrintf("Masternode payment to %s\n", address2.ToString().c_str());
+    }
+    else
+    {
+        // add tx outputs for 3 dev reward splits
+        int payments = txNew.vout.size() + 3;
+        txNew.vout.resize(payments);
+    }
 
-        // Set output amount
-        if(!hasPayment && txNew.vout.size() == 6) // 2 stake outputs, stake was split, plus 3 dev payments
+    CBitcoinAddress addrDevOne;
+    addrDevOne.SetString(DecodeBase64(PEPE_REBRAND_DEV_1));
+    CScript payeeDevOne = GetScriptForDestination(addrDevOne.Get());
+    CBitcoinAddress addrDevTwo;
+    addrDevTwo.SetString(DecodeBase64(PEPE_REBRAND_DEV_2));
+    CScript payeeDevTwo = GetScriptForDestination(addrDevTwo.Get());
+    CBitcoinAddress addrDevThree;
+    addrDevThree.SetString(DecodeBase64(PEPE_REBRAND_DEV_3));
+    CScript payeeDevThree = GetScriptForDestination(addrDevThree.Get());
+
+    txNew.vout[payments-1].scriptPubKey = payeeDevOne;
+    txNew.vout[payments-1].nValue = 0;
+    txNew.vout[payments-2].scriptPubKey = payeeDevTwo;
+    txNew.vout[payments-2].nValue = 0;
+    txNew.vout[payments-3].scriptPubKey = payeeDevThree;
+    txNew.vout[payments-3].nValue = 0;                
+
+    int64_t devPayment = 0.02 * nReward; // 2% of stake reward per dev payment
+
+    if (pindexPrev->nHeight+1 > PEPE_REBRAND_PF_HEIGHT)
+        devPayment = 0.04 * nReward; // 4% per dev reward, approx 38k coins/yr x3        
+    if (pindexPrev->nHeight+1 == PEPE_REBRAND_PF_HEIGHT)
+        devPayment = PEPE_DEV_GRANT;
+    if (pindexPrev->nHeight+1 == PEPE_KEKDAQ_MID_FIX_HEIGHT)
+        devPayment = PEPE_DEV_GRANT_MID;
+    if (pindexPrev->nHeight+1 == PEPE_IPFSMN_FNL_HEIGHT)
+        devPayment = PEPE_DEV_GRANT_FINAL;
+    if (pindexPrev->nHeight == PEPE_KEKDAQ2_HEIGHT)
+        devPayment = PEPE_DEV_GRANT;            
+    
+    // int64_t blockValue = nCredit;   from port rebase
+    int64_t masternodePayment = (nReward - (3 * devPayment)) * 0.375;   // 37.5% to MN
+    
+    //GetMasternodePayment(pindexPrev->nHeight+1, nReward);
+    
+    // Set output amount
+    if(!hasPayment && txNew.vout.size() == 6) // 2 stake outputs, stake was split, plus 3 dev payments
         {
             txNew.vout[payments-1].nValue = devPayment;
             txNew.vout[payments-2].nValue = devPayment;
@@ -4049,7 +3773,7 @@ bool CWallet::CreateCoinStake(const CKeyStore& keystore, unsigned int nBits, int
             // this should never happen
             LogPrintf("WARNING: Incorrect post-rebrand stake tx outputs count!\n");
         }
-    }
+    }    
 
     // Sign
     int nIn = 0;
@@ -4135,10 +3859,9 @@ bool CWallet::AddAccountingEntry(const CAccountingEntry& acentry, CWalletDB & pw
     laccentries.push_back(acentry);
     CAccountingEntry & entry = laccentries.back();
     wtxOrdered.insert(make_pair(entry.nOrderPos, TxPair((CWalletTx*)0, &entry)));
- 
+
     return true;
 }
-
 
 string CWallet::SendMoney(CScript scriptPubKey, int64_t nValue, std::string& sNarr, CWalletTx& wtxNew, bool fAskFee)
 {
@@ -4379,7 +4102,7 @@ bool CWallet::SetAddressBookName(const CTxDestination& address, const string& st
                              (fUpdated ? CT_UPDATED : CT_NEW) );
     if (!fFileBacked)
         return false;
-    return CWalletDB(strWalletFile).WriteName(CBitcoinAddress(address).ToString(), strName);
+    return CWalletDB(strWalletFile).WriteName(CPepeCoinAddress(address).ToString(), strName);
 }
 
 bool CWallet::DelAddressBookName(const CTxDestination& address)
@@ -4394,8 +4117,8 @@ bool CWallet::DelAddressBookName(const CTxDestination& address)
 
     if (!fFileBacked)
         return false;
-    CWalletDB(strWalletFile).EraseName(CBitcoinAddress(address).ToString());
-    return CWalletDB(strWalletFile).EraseName(CBitcoinAddress(address).ToString());
+    CWalletDB(strWalletFile).EraseName(CPepeCoinAddress(address).ToString());
+    return CWalletDB(strWalletFile).EraseName(CPepeCoinAddress(address).ToString());
 }
 
 bool CWallet::GetTransaction(const uint256 &hashTx, CWalletTx& wtx)
@@ -4487,9 +4210,9 @@ bool CWallet::TopUpKeyPool(unsigned int nSize)
             if (!walletdb.WritePool(nEnd, CKeyPool(GenerateNewKey())))
                 throw runtime_error("TopUpKeyPool() : writing generated key failed");
             setKeyPool.insert(nEnd);
-            // LogPrintf("keypool added key %d, size=%u\n", nEnd, setKeyPool.size());
             
-            // remove some unneeded log messages to reduce disk thrashing
+            // reduce writing to logs
+            // LogPrintf("keypool added key %d, size=%u\n", nEnd, setKeyPool.size());
             // double dProgress = 100.f * nEnd / (nTargetSize + 1);
             // std::string strMsg = strprintf(_("Loading wallet... (%3.2f %%)"), dProgress);
             // uiInterface.InitMessage(strMsg);
@@ -4957,13 +4680,4 @@ void CWallet::GetKeyBirthTimes(std::map<CKeyID, int64_t> &mapKeyBirth) const {
     // Extract block timestamps for those keys
     for (std::map<CKeyID, CBlockIndex*>::const_iterator it = mapKeyFirstBlock.begin(); it != mapKeyFirstBlock.end(); it++)
         mapKeyBirth[it->first] = it->second->nTime - 7200; // block times can be 2h off
-}
-
-bool CWallet::AddmastertoadConfig(CmastertoadConfig nodeConfig)
-{
-    bool rv = CWalletDB(strWalletFile).WritemastertoadConfig(nodeConfig.sAlias, nodeConfig);
-    if(rv)
-   uiInterface.NotifymastertoadChanged(nodeConfig);
-
-    return rv;
 }

@@ -103,10 +103,6 @@ public:
 
 static const CRPCConvertParam vRPCConvertParams[] =
 {
-    { "getlastmessages", 0 },
-    { "getmessage", 0 },
-    { "getmessages", 0 },
-    { "getmessages", 1 },
     { "stop", 0 },
     { "getaddednodeinfo", 0 },
     { "sendtoaddress", 1 },
@@ -165,12 +161,12 @@ static const CRPCConvertParam vRPCConvertParams[] =
     { "importaddress", 2 },
     { "checkkernel", 0 },
     { "checkkernel", 1 },
+    { "setban", 2 },
+    { "setban", 3 },
     { "sendtostealthaddress", 1 },
     { "searchrawtransactions", 1 },
     { "searchrawtransactions", 2 },
     { "searchrawtransactions", 3 },
-    { "rebuildaddressindexfor", 0 },
-    { "rebuildaddressindexfrom", 0},
 };
 
 class CRPCConvertTable

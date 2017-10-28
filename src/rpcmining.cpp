@@ -11,8 +11,6 @@
 #include "init.h"
 #include "miner.h"
 #include "kernel.h"
-#include "masternode.h"
-#include "base58.h"
 
 #include <boost/assign/list_of.hpp>
 
@@ -67,7 +65,7 @@ Value getstakesubsidy(const Array& params, bool fHelp)
         ssData >> tx;
     }
     catch (std::exception &e) {
-        throw JSONRPCError(RPC_DESERIALIZATION_ERROR, "TX decode failed");
+        throw JSONRPCError(RPC_DESERIALIZATION_ERROR, "PEPE decode failed");
     }
 
     uint64_t nCoinAge;
@@ -95,14 +93,12 @@ Value getmininginfo(const Array& params, bool fHelp)
     obj.push_back(Pair("currentblocksize",(uint64_t)nLastBlockSize));
     obj.push_back(Pair("currentblocktx",(uint64_t)nLastBlockTx));
 
-    diff.push_back(Pair("proof-of-work",        GetDifficulty()));
-    diff.push_back(Pair("proof-of-stake",       GetDifficulty(GetLastBlockIndex(pindexBest, true))));
+    //diff.push_back(Pair("proof-of-work",        GetDifficulty()));
+    //diff.push_back(Pair("proof-of-stake",       GetDifficulty(GetLastBlockIndex(pindexBest, true))));
+    //diff.push_back(Pair("search-interval",      (int)nLastCoinStakeSearchInterval));
+    obj.push_back(Pair("difficulty",    GetDifficulty(GetLastBlockIndex(pindexBest, true))));
 
-    obj.push_back(Pair("difficulty",    diff));
-
-    // obj.push_back(Pair("difficulty",    GetDifficulty(GetLastBlockIndex(pindexBest, true))));
-
-    obj.push_back(Pair("blockvalue",    (int64_t)GetProofOfWorkReward(pindexBest->pprev, 0)));
+    // obj.push_back(Pair("blockvalue",    (int64_t)GetProofOfStakeReward(pindexBest->pprev, 0, 0, nCoinValue)));
     obj.push_back(Pair("netmhashps",     GetPoWMHashPS()));
     obj.push_back(Pair("netstakeweight", GetPoSKernelPS()));
     obj.push_back(Pair("errors",        GetWarnings("statusbar")));
@@ -112,8 +108,6 @@ Value getmininginfo(const Array& params, bool fHelp)
     weight.push_back(Pair("maximum",    (uint64_t)0));
     weight.push_back(Pair("combined",  (uint64_t)nWeight));
     obj.push_back(Pair("stakeweight", weight));
-  	obj.push_back(Pair("stakeinterest",    (uint64_t)GetPIRRewardCoinYear(pwalletMain->GetBalance(),nBestHeight)));
-
 
     obj.push_back(Pair("testnet",       TestNet()));
     return obj;
@@ -128,21 +122,14 @@ Value getstakinginfo(const Array& params, bool fHelp)
 
     uint64_t nWeight = 0;
     uint64_t nExpectedTime = 0;
-
+    
     if (pwalletMain)
         nWeight = pwalletMain->GetStakeWeight();
 
     uint64_t nNetworkWeight = GetPoSKernelPS();
     bool staking = nLastCoinStakeSearchInterval && nWeight;
 
-//    if(pindexBest->nHeight <= HARD_FORK_BLOCK){
-//        nExpectedTime = staking ? (TARGET_SPACING_FORK * nNetworkWeight / nWeight) : 0;
-//    } else {
-//        nExpectedTime = staking ? (TARGET_SPACING * nNetworkWeight / nWeight) : 0;
-//    }
-
         nExpectedTime = staking ? (TARGET_SPACING * nNetworkWeight / nWeight) : 0;
-
 
     Object obj;
 
@@ -659,27 +646,6 @@ Value getblocktemplate(const Array& params, bool fHelp)
     result.push_back(Pair("curtime", (int64_t)pblock->nTime));
     result.push_back(Pair("bits", strprintf("%08x", pblock->nBits)));
     result.push_back(Pair("height", (int64_t)(pindexPrev->nHeight+1)));
-
-    CScript payee;
-    int winningNode = GetCurrentMasterNode(1);
-    if(winningNode >= 0){
-        payee =GetScriptForDestination(vecMasternodes[winningNode].pubkey.GetID());
-    } else {
-        LogPrintf("GetBlockTemplate: Failed to detect masternode to pay\n");
-        // pay the burn address if it can't detect
-        std::string burnAddy = "PKekDaqXXXXXXXXXXXXXXXXXXXXXWH8yfH";
-        CBitcoinAddress burnAddr;
-        burnAddr.SetString(burnAddy);
-        payee = GetScriptForDestination(burnAddr.Get());
-    }
-
-    CTxDestination address1;
-    ExtractDestination(payee, address1);
-    CBitcoinAddress address2(address1);
-    result.push_back(Pair("payee", address2.ToString().c_str()));
-    result.push_back(Pair("payee_amount", (int64_t)(pblock->vtx[0].vout[0].nValue * 0.375)));
-    result.push_back(Pair("masternode_payments_started", pindexPrev->nHeight + 1 > PEPE_KEKDAQ_MID_HEIGHT));
-    result.push_back(Pair("enforce_masternode_payments", pindexPrev->nHeight + 1 > PEPE_KEKDAQ_MID_HEIGHT));
 
     return result;
 }

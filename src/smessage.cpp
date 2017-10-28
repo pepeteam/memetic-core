@@ -926,7 +926,7 @@ int SecureMsgAddWalletAddresses()
 
         // TODO: skip addresses for stealth transactions
 
-        CBitcoinAddress coinAddress(entry.first);
+        CPepeCoinAddress coinAddress(entry.first);
         if (!coinAddress.IsValid())
             continue;
 
@@ -1307,7 +1307,7 @@ bool SecureMsgReceiveData(CNode* pfrom, std::string strCommand, CDataStream& vRe
 
         if (vchData.size() < 4)
         {
-            pfrom->Misbehaving(1);
+            Misbehaving(pfrom->GetId(), 1);
             return false; // not enough data received to be a valid smsgInv
         };
 
@@ -1336,14 +1336,14 @@ bool SecureMsgReceiveData(CNode* pfrom, std::string strCommand, CDataStream& vRe
         if (nInvBuckets > (SMSG_RETENTION / SMSG_BUCKET_LEN) + 1) // +1 for some leeway
         {
             LogPrint("smessage", "Peer sent more bucket headers than possible %u, %u.\n", nInvBuckets, (SMSG_RETENTION / SMSG_BUCKET_LEN));
-            pfrom->Misbehaving(1);
+            Misbehaving(pfrom->GetId(), 1);
             return false;
         };
 
         if (vchData.size() < 4 + nInvBuckets*16)
         {
             LogPrint("smessage", "Remote node did not send enough data.\n");
-            pfrom->Misbehaving(1);
+            Misbehaving(pfrom->GetId(), 1);
             return false;
         };
 
@@ -1371,14 +1371,14 @@ bool SecureMsgReceiveData(CNode* pfrom, std::string strCommand, CDataStream& vRe
                     LogPrint("smessage", "Not interested in peer bucket %d, has expired.\n", time);
 
                 if (time < now - SMSG_RETENTION - SMSG_TIME_LEEWAY)
-                    pfrom->Misbehaving(1);
+                    Misbehaving(pfrom->GetId(), 1);
                 continue;
             };
             if (time > now + SMSG_TIME_LEEWAY)
             {
                 if (fDebugSmsg)
                     LogPrint("smessage", "Not interested in peer bucket %d, in the future.\n", time);
-                pfrom->Misbehaving(1);
+                Misbehaving(pfrom->GetId(), 1);
                 continue;
             };
 
@@ -1526,7 +1526,7 @@ bool SecureMsgReceiveData(CNode* pfrom, std::string strCommand, CDataStream& vRe
         {
             if (fDebugSmsg)
                 LogPrint("smessage", "Not interested in peer bucket %d, in the future.\n", time);
-            pfrom->Misbehaving(1);
+            Misbehaving(pfrom->GetId(), 1);
             return false;
         };
         
@@ -1693,7 +1693,7 @@ bool SecureMsgReceiveData(CNode* pfrom, std::string strCommand, CDataStream& vRe
         if (vchData.size() < 8)
         {
             LogPrint("smessage", "smsgMatch, not enough data %u.\n", vchData.size());
-            pfrom->Misbehaving(1);
+            Misbehaving(pfrom->GetId(), 1);
             return false;
         };
 
@@ -1756,7 +1756,7 @@ bool SecureMsgReceiveData(CNode* pfrom, std::string strCommand, CDataStream& vRe
         if (vchData.size() < 8)
         {
             LogPrint("smessage", "smsgIgnore, not enough data %u.\n", vchData.size());
-            pfrom->Misbehaving(1);
+            Misbehaving(pfrom->GetId(), 1);
             return false;
         };
 
@@ -2518,7 +2518,7 @@ int SecureMsgScanMessage(uint8_t *pHeader, uint8_t *pPayload, uint32_t nPayload,
         if (!it->fReceiveEnabled)
             continue;
 
-        CBitcoinAddress coinAddress(it->sAddress);
+        CPepeCoinAddress coinAddress(it->sAddress);
         addressTo = coinAddress.ToString();
 
         if (!it->fReceiveAnon)
@@ -2627,7 +2627,7 @@ int SecureMsgGetLocalPublicKey(std::string& strAddress, std::string& strPublicKe
     //if (fDebugSmsg)
     //   LogPrint("smessage", "SecureMsgGetLocalPublicKey().\n");
 
-    CBitcoinAddress address;
+    CPepeCoinAddress address;
     if (!address.SetString(strAddress))
         return 2; // Invalid coin address
 
@@ -2687,7 +2687,7 @@ int SecureMsgAddAddress(std::string& address, std::string& publicKey)
             5 address is invalid
     */
 
-    CBitcoinAddress coinAddress(address);
+    CPepeCoinAddress coinAddress(address);
 
     if (!coinAddress.IsValid())
     {
@@ -2716,7 +2716,7 @@ int SecureMsgAddAddress(std::string& address, std::string& publicKey)
     };
     
     CKeyID keyIDT = pubKeyT.GetID();
-    CBitcoinAddress addressT(keyIDT);
+    CPepeCoinAddress addressT(keyIDT);
 
     if (addressT.ToString().compare(address) != 0)
     {
@@ -2833,7 +2833,7 @@ int SecureMsgReceive(CNode* pfrom, std::vector<uint8_t>& vchData)
     if (nBunch == 0 || nBunch > 500)
     {
         LogPrint("smessage", "Error: Invalid no. messages received in bunch %u, for bucket %d.\n", nBunch, bktTime);
-        pfrom->Misbehaving(1);
+        Misbehaving(pfrom->GetId(), 1);
         
         {
             LOCK(cs_smsg);
@@ -2863,10 +2863,10 @@ int SecureMsgReceive(CNode* pfrom, std::vector<uint8_t>& vchData)
             // message dropped
             if (rv == 2) // invalid proof of work
             {
-                pfrom->Misbehaving(10);
+                Misbehaving(pfrom->GetId(), 1);
             } else
             {
-                pfrom->Misbehaving(1);
+                Misbehaving(pfrom->GetId(), 1);
             };
             continue;
         };
@@ -3312,7 +3312,7 @@ int SecureMsgEncrypt(SecureMessage &smsg, const std::string &addressFrom, const 
 
 
     bool fSendAnonymous;
-    CBitcoinAddress coinAddrFrom;
+    CPepeCoinAddress coinAddrFrom;
     CKeyID ckidFrom;
     CKey keyFrom;
 
@@ -3336,7 +3336,7 @@ int SecureMsgEncrypt(SecureMessage &smsg, const std::string &addressFrom, const 
     };
 
 
-    CBitcoinAddress coinAddrDest;
+    CPepeCoinAddress coinAddrDest;
     CKeyID ckidDest;
 
     if (!coinAddrDest.SetString(addressTo))
@@ -3479,7 +3479,7 @@ int SecureMsgEncrypt(SecureMessage &smsg, const std::string &addressFrom, const 
         keyFrom.SignCompact(Hash(message.begin(), message.end()), vchSignature);
 
         // -- Save some bytes by sending address raw
-        vchPayload[0] = (static_cast<CBitcoinAddress_B*>(&coinAddrFrom))->getVersion(); // vchPayload[0] = coinAddrDest.nVersion;
+        vchPayload[0] = (static_cast<CPepeCoinAddress_B*>(&coinAddrFrom))->getVersion(); // vchPayload[0] = coinAddrDest.nVersion;
         memcpy(&vchPayload[1], (static_cast<CKeyID_B*>(&ckidFrom))->GetPPN(), 20); // memcpy(&vchPayload[1], ckidDest.pn, 20);
 
         memcpy(&vchPayload[1+20], &vchSignature[0], vchSignature.size());
@@ -3624,7 +3624,7 @@ int SecureMsgSend(std::string &addressFrom, std::string &addressTo, std::string 
         LogPrint("smessage", "Encrypting message for outbox.\n");
 
     std::string addressOutbox = "None";
-    CBitcoinAddress coinAddrOutbox;
+    CPepeCoinAddress coinAddrOutbox;
 
     BOOST_FOREACH(const PAIRTYPE(CTxDestination, std::string)& entry, pwalletMain->mapAddressBook)
     {
@@ -3632,7 +3632,7 @@ int SecureMsgSend(std::string &addressFrom, std::string &addressTo, std::string 
         if (!IsMine(*pwalletMain, entry.first))
             continue;
 
-        const CBitcoinAddress& address = entry.first;
+        const CPepeCoinAddress& address = entry.first;
 
         addressOutbox = address.ToString();
         if (!coinAddrOutbox.SetString(addressOutbox)) // test valid
@@ -3733,7 +3733,7 @@ int SecureMsgDecrypt(bool fTestOnly, std::string &address, uint8_t *pHeader, uin
 
 
     // -- Fetch private key k, used to decrypt
-    CBitcoinAddress coinAddrDest;
+    CPepeCoinAddress coinAddrDest;
     CKeyID ckidDest;
     CKey keyDest;
     if (!coinAddrDest.SetString(address))
@@ -3886,7 +3886,7 @@ int SecureMsgDecrypt(bool fTestOnly, std::string &address, uint8_t *pHeader, uin
         uint160 ui160(vchUint160);
         CKeyID ckidFrom(ui160);
 
-        CBitcoinAddress coinAddrFrom;
+        CPepeCoinAddress coinAddrFrom;
         coinAddrFrom.Set(ckidFrom);
         if (!coinAddrFrom.IsValid())
         {
@@ -3906,7 +3906,7 @@ int SecureMsgDecrypt(bool fTestOnly, std::string &address, uint8_t *pHeader, uin
         };
 
         // -- get address for the compressed public key
-        CBitcoinAddress coinAddrFromSig;
+        CPepeCoinAddress coinAddrFromSig;
         coinAddrFromSig.Set(cpkFromSig.GetID());
 
         if (!(coinAddrFrom == coinAddrFromSig))

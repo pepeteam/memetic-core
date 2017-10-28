@@ -23,7 +23,7 @@ namespace Checkpoints
     // + Is surrounded by blocks with reasonable timestamps
     //   (no blocks before with a timestamp after, none after with
     //    timestamp before)
-    // + Contains no strange transactionsg
+    // + Contains no strange transactions
     //
     static MapCheckpoints mapCheckpoints =
         boost::assign::map_list_of
@@ -57,6 +57,9 @@ namespace Checkpoints
         (834600, uint256("0x0cd92f0d45ceb2c69c8d7845a584e69668cce098c01d3e1ec04af285afe2d378"))
         (850000, uint256("0x010f9fd8aba13696829b5b6003770b8e947df06eaf507de592b4cc3bc9b04192"))
         (885000, uint256("0x0fcb255ff69a157d13ff94bce583f2993b9bc1ed385ecb0d027c95b29c03b222"))
+        (914033, uint256("0x807a3dd50607fba67d921707dc8c9e90f067f3707ed8d28c52f634d7db318e29"))
+        (952284, uint256("0xda565befec4bef0fc142951a7440a6e0c169cd3e7f5999e6ddea6c8fa19b2e47"))
+        
     ;
 
     // TestNet has no checkpoints
@@ -94,7 +97,7 @@ namespace Checkpoints
         return NULL;
     }
 
-    // Automatically select a suitable sync-checkpoint
+    // Automatically select a suitable sync-checkpoint 
     const CBlockIndex* AutoSelectSyncCheckpoint()
     {
         // tighten automatic checkpointing to 10 blocks in past for reorg fix attempt

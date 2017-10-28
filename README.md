@@ -1,6 +1,6 @@
 # PepeCoin - PEPE 
 
-v. 2.5.2.0 - Jack O Lantern Hardfork at blockheight 888,000
+v. 3.0.0.0 Rebase
 ####
 Pepecoin is digital decentralized crypto-currency, a hybrid zombie mix of seven other cryptocurrency projects, plus a lot of custom code and goals.
 
@@ -145,7 +145,7 @@ License
 >Copyright (c) 2014 Digibyte Developers
 >Copyright (c) 2014 DashCoin Developers
 >Copyright (c) 2014 NetCoin Developers
->Copyright (c) 2015 Transfercoin Developers
+>Copyright (c) 2015 PepeCoin Developers
 >Copyright (c) 2015-2016 PepeCoin Developers
 >Copyright (c) 2015-2016 Memetic Developers
 >Copyright (c) 2017 PepeCoin Developers

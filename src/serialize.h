@@ -1234,14 +1234,21 @@ public:
         file = NULL;
     }
 
+    /** Get wrapped FILE* with pepecoin of ownership.
+     * @note This will invalidate the CAutoFile object, and makes it the responsibility of the caller
+     * of this function to clean up the returned FILE*.
+     */
     FILE* release()             { FILE* ret = file; file = NULL; return ret; }
-    operator FILE*()            { return file; }
-    FILE* operator->()          { return file; }
-    FILE& operator*()           { return *file; }
-    FILE** operator&()          { return &file; }
-    FILE* operator=(FILE* pnew) { return file = pnew; }
-    bool operator!()            { return (file == NULL); }
 
+    /** Get wrapped FILE* without pepecoin of ownership.
+     * @note Ownership of the FILE* will remain with this class. Use this only if the scope of the
+     * CAutoFile outlives use of the passed pointer.
+     */
+    FILE* Get() const           { return file; }
+
+    /** Return true if the wrapped FILE* is NULL, false otherwise.
+     */
+    bool IsNull() const         { return (file == NULL); }
 
     //
     // Stream subset

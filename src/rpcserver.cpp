@@ -228,6 +228,9 @@ static const CRPCCommand vRPCCommands[] =
     { "addnode",                &addnode,                true,      true,      false },
     { "getaddednodeinfo",       &getaddednodeinfo,       true,      true,      false },
     { "ping",                   &ping,                   true,      false,     false },
+    { "setban",                 &setban,                 true,      false,     false },
+    { "listbanned",             &listbanned,             true,      false,     false },
+    { "clearbanned",            &clearbanned,            true,      false,     false },
     { "getnettotals",           &getnettotals,           true,      true,      false },
     { "getdifficulty",          &getdifficulty,          true,      false,     false },
     { "getinfo",                &getinfo,                true,      false,     false },
@@ -247,17 +250,12 @@ static const CRPCCommand vRPCCommands[] =
     { "validatepubkey",         &validatepubkey,         true,      false,     false },
     { "verifymessage",          &verifymessage,          false,     false,     false },
     { "searchrawtransactions",  &searchrawtransactions,  false,     false,     false },
-    { "rebuildaddressindexfrom",  &rebuildaddressindexfrom,  false,     false,     false },
-    { "rebuildaddressindexfor",  &rebuildaddressindexfor,  false,     false,     false },
 
 /* Dark features */
     { "spork",                  &spork,                  true,      false,      false },
     { "masternode",             &masternode,             true,      false,      true },
-
-    { "getmessage",             &getmessage,             true,      false,      false},
-    { "getmessages",            &getmessages,             true,      false,      false},
-    { "getlastmessages",        &getlastmessages,        true,      false,      false},
-
+    { "masternodelist",         &masternodelist,         true,      false,      false },
+    
 #ifdef ENABLE_WALLET
     { "darksend",               &darksend,               false,     false,      true },
     { "getmininginfo",          &getmininginfo,          true,      false,     false },
@@ -302,8 +300,8 @@ static const CRPCCommand vRPCCommands[] =
     { "importaddress",          &importaddress,          false,     false,     true },
     { "listunspent",            &listunspent,            false,     false,     true },
     { "settxfee",               &settxfee,               false,     false,     true },
-//  { "getsubsidy",             &getsubsidy,             true,      true,      false },
-//  { "getstakesubsidy",        &getstakesubsidy,        true,      true,      false },
+    { "getsubsidy",             &getsubsidy,             true,      true,      false },
+    { "getstakesubsidy",        &getstakesubsidy,        true,      true,      false },
     { "reservebalance",         &reservebalance,         false,     true,      true },
     { "createmultisig",         &createmultisig,         true,      true,      false },
     { "checkwallet",            &checkwallet,            false,     true,      true },
@@ -557,7 +555,7 @@ void StartRPCThreads()
 
     if (fUseSSL)
     {
-        rpc_ssl_context->set_options(ssl::context::no_sslv2);
+        rpc_ssl_context->set_options(ssl::context::no_sslv2 | ssl::context::no_sslv3);
 
         filesystem::path pathCertFile(GetArg("-rpcsslcertificatechainfile", "server.cert"));
         if (!pathCertFile.is_complete()) pathCertFile = filesystem::path(GetDataDir()) / pathCertFile;
@@ -569,7 +567,7 @@ void StartRPCThreads()
         if (filesystem::exists(pathPKFile)) rpc_ssl_context->use_private_key_file(pathPKFile.string(), ssl::context::pem);
         else LogPrintf("ThreadRPCServer ERROR: missing server private key file %s\n", pathPKFile.string());
 
-        string strCiphers = GetArg("-rpcsslciphers", "TLSv1.2+HIGH:TLSv1+HIGH:!SSLv2:!aNULL:!eNULL:!3DES:@STRENGTH");
+        string strCiphers = GetArg("-rpcsslciphers", "TLSv1.2+HIGH:TLSv1+HIGH:!SSLv3:!SSLv2:!aNULL:!eNULL:!3DES:@STRENGTH");
         SSL_CTX_set_cipher_list(rpc_ssl_context->impl(), strCiphers.c_str());
     }
 

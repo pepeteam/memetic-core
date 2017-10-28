@@ -105,7 +105,7 @@ static bool SelectBlockFromCandidates(vector<pair<int64_t, uint256> >& vSortedBy
 // selected block of a given block group in the past.
 // The selection of a block is based on a hash of the block's proof-hash and
 // the previous stake modifier.
-// Stake modifier is recomputed at a fixed time interval instead of every
+// Stake modifier is recomputed at a fixed time interval instead of every 
 // block. This is to make it difficult for an attacker to gain control of
 // additional bits in the stake modifier, even after generating a chain of
 // blocks.
@@ -130,12 +130,7 @@ bool ComputeNextStakeModifier(const CBlockIndex* pindexPrev, uint64_t& nStakeMod
     // Sort candidate blocks by timestamp
     vector<pair<int64_t, uint256> > vSortedByTimestamp;
 
-//   if(pindexBest->nHeight >= HARD_FORK_BLOCK){
-//        vSortedByTimestamp.reserve(64 * nModifierInterval / TARGET_SPACING_FORK);
-//    } else {
-//    }
-        vSortedByTimestamp.reserve(64 * nModifierInterval / TARGET_SPACING);
-
+    vSortedByTimestamp.reserve(64 * nModifierInterval / TARGET_SPACING);
 
     int64_t nSelectionInterval = GetStakeModifierSelectionInterval();
     int64_t nSelectionIntervalStart = (pindexPrev->GetBlockTime() / nModifierInterval) * nModifierInterval - nSelectionInterval;
@@ -217,9 +212,11 @@ bool CheckStakeKernelHash(CBlockIndex* pindexPrev, unsigned int nBits, unsigned 
         return error("CheckStakeKernelHash() : nTime violation");
 
 //    if(pindexBest->nHeight < HARD_FORK_BLOCK){
+
         if (nTimeBlockFrom + nStakeMinAge > nTimeTx) // Min age requirement
             return error("CheckStakeKernelHash() : min age violation");
-//     }
+
+//    } removed from rebase
 
     // Base target
     CBigNum bnTarget;
@@ -233,7 +230,6 @@ bool CheckStakeKernelHash(CBlockIndex* pindexPrev, unsigned int nBits, unsigned 
     targetProofOfStake = bnTarget.getuint256();
 
     uint64_t nStakeModifier = pindexPrev->nStakeModifier;
-
     uint256 bnStakeModifierV2 = pindexPrev->bnStakeModifierV2;
     int nStakeModifierHeight = pindexPrev->nHeight;
     int64_t nStakeModifierTime = pindexPrev->nTime;
@@ -320,19 +316,11 @@ bool CheckProofOfStake(CBlockIndex* pindexPrev, const CTransaction& tx, unsigned
     nStakeMinConfirmations = 360; // 6 hours
     if((pindexPrev->nHeight+1) >= PEPE_STAKE_WINTER_SWITCH_HEIGHT || Params().NetworkID() == CChainParams::TESTNET)
         nStakeMinConfirmations = 60;
-
-    if (IsConfirmedInNPrevBlocks(txindex, pindexPrev, nStakeMinConfirmations - 1, nDepth))
-        return tx.DoS(100, error("CheckProofOfStake() : tried to stake at depth %d", nDepth + 1));
-
-/*
-    if(pindexBest->nHeight >= HARD_FORK_BLOCK){
+    if((pindexPrev->nHeight+1) > PEPE_KEKDAQ_MID_FIX_HEIGHT)
+        nStakeMinConfirmations = 600;
+    if((pindexPrev->nHeight+1) > PEPE_STAKE_CONF_HEIGHT)
         nStakeMinConfirmations = 360;
-        if (IsConfirmedInNPrevBlocks(txindex, pindexPrev, nStakeMinConfirmations - 1, nDepth))
-            return tx.DoS(100, error("CheckProofOfStake() : tried to stake at depth %d", nDepth + 1));
-    } else {
-        nStakeMinConfirmations = 1000;
-    }
-*/
+
 
     if (!CheckStakeKernelHash(pindexPrev, nBits, block.GetBlockTime(), txPrev, txin.prevout, tx.nTime, hashProofOfStake, targetProofOfStake, fDebug))
         return tx.DoS(1, error("CheckProofOfStake() : INFO: check kernel failed on coinstake %s, hashProof=%s", tx.GetHash().ToString(), hashProofOfStake.ToString())); // may occur during initial download or if behind on block chain sync
@@ -350,6 +338,8 @@ bool CheckKernel(CBlockIndex* pindexPrev, unsigned int nBits, int64_t nTime, con
 {
     uint256 hashProofOfStake, targetProofOfStake;
 
+    int nStakeMinConfirmations = 360; // 6 hours
+
     CTxDB txdb("r");
     CTransaction txPrev;
     CTxIndex txindex;
@@ -365,17 +355,19 @@ bool CheckKernel(CBlockIndex* pindexPrev, unsigned int nBits, int64_t nTime, con
     if(pindexBest->nHeight < HARD_FORK_BLOCK){
         if (block.GetBlockTime() + nStakeMinAge > nTime)
             return false; // only count coins meeting min age requirement
-    } else {     } */
+    } else {
+*/
+    int nDepth;
 
-        int nDepth;
-
-        int nStakeMinConfirmations = 360; // 6 hours
-        if((pindexPrev->nHeight+1) >= PEPE_STAKE_WINTER_SWITCH_HEIGHT)
-            nStakeMinConfirmations = 60;
+    if((pindexPrev->nHeight+1) >= PEPE_STAKE_WINTER_SWITCH_HEIGHT || Params().NetworkID() == CChainParams::TESTNET)
+        nStakeMinConfirmations = 60;
+    if((pindexPrev->nHeight+1) > PEPE_KEKDAQ_MID_FIX_HEIGHT)
+        nStakeMinConfirmations = 600;
+    if((pindexPrev->nHeight+1) > PEPE_STAKE_CONF_HEIGHT)
+        nStakeMinConfirmations = 360;
 
         if (IsConfirmedInNPrevBlocks(txindex, pindexPrev, nStakeMinConfirmations - 1, nDepth))
             return false;
-
 
     if (pBlockTime)
         *pBlockTime = block.GetBlockTime();

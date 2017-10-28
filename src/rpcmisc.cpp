@@ -9,7 +9,6 @@
 #include "net.h"
 #include "netbase.h"
 #include "rpcserver.h"
-#include "timedata.h"
 #include "util.h"
 #include "stealth.h"
 #include "spork.h"
@@ -47,7 +46,7 @@ Value getinfo(const Array& params, bool fHelp)
         obj.push_back(Pair("walletversion", pwalletMain->GetVersion()));
         obj.push_back(Pair("balance",       ValueFromAmount(pwalletMain->GetBalance())));
         if(!fLiteMode)
-            obj.push_back(Pair("smugsend_balance", ValueFromAmount(pwalletMain->GetAnonymizedBalance())));
+            obj.push_back(Pair("darksend_balance", ValueFromAmount(pwalletMain->GetAnonymizedBalance())));
         obj.push_back(Pair("newmint",       ValueFromAmount(pwalletMain->GetNewMint())));
         obj.push_back(Pair("stake",         ValueFromAmount(pwalletMain->GetStake())));
     }
@@ -56,14 +55,12 @@ Value getinfo(const Array& params, bool fHelp)
     obj.push_back(Pair("timeoffset",    (int64_t)GetTimeOffset()));
     obj.push_back(Pair("moneysupply",   ValueFromAmount(pindexBest->nMoneySupply)));
     obj.push_back(Pair("connections",   (int)vNodes.size()));
-    obj.push_back(Pair("proxy",         (proxy.IsValid() ? proxy.ToStringIPPort() : string())));
+    obj.push_back(Pair("proxy",         (proxy.first.IsValid() ? proxy.first.ToStringIPPort() : string())));
     obj.push_back(Pair("ip",            GetLocalAddress(NULL).ToStringIP()));
 
-    diff.push_back(Pair("proof-of-work",        GetDifficulty()));
-    diff.push_back(Pair("proof-of-stake",       GetDifficulty(GetLastBlockIndex(pindexBest, true))));
-    obj.push_back(Pair("difficulty",    diff));
-
-    // obj.push_back(Pair("stake difficulty",    GetDifficulty(GetLastBlockIndex(pindexBest, true))));
+    //diff.push_back(Pair("proof-of-work",  GetDifficulty()));
+    //diff.push_back(Pair("proof-of-stake", GetDifficulty(GetLastBlockIndex(pindexBest, true))));
+    obj.push_back(Pair("difficulty",    GetDifficulty(GetLastBlockIndex(pindexBest, true))));
 
     obj.push_back(Pair("testnet",       TestNet()));
 #ifdef ENABLE_WALLET
@@ -117,7 +114,7 @@ public:
             obj.push_back(Pair("hex", HexStr(subscript.begin(), subscript.end())));
             Array a;
             BOOST_FOREACH(const CTxDestination& addr, addresses)
-                a.push_back(CBitcoinAddress(addr).ToString());
+                a.push_back(CPepeCoinAddress(addr).ToString());
             obj.push_back(Pair("addresses", a));
             if (whichType == TX_MULTISIG)
                 obj.push_back(Pair("sigsrequired", nRequired));
@@ -140,7 +137,7 @@ Value validateaddress(const Array& params, bool fHelp)
             "validateaddress <pepecoinaddress>\n"
             "Return information about <pepecoinaddress>.");
 
-    CBitcoinAddress address(params[0].get_str());
+    CPepeCoinAddress address(params[0].get_str());
     bool isValid = address.IsValid();
 
     Object ret;
@@ -179,7 +176,7 @@ Value validatepubkey(const Array& params, bool fHelp)
     bool isCompressed = pubKey.IsCompressed();
     CKeyID keyID = pubKey.GetID();
 
-    CBitcoinAddress address;
+    CPepeCoinAddress address;
     address.Set(keyID);
 
     Object ret;
@@ -216,7 +213,7 @@ Value verifymessage(const Array& params, bool fHelp)
     string strSign     = params[1].get_str();
     string strMessage  = params[2].get_str();
 
-    CBitcoinAddress addr(strAddress);
+    CPepeCoinAddress addr(strAddress);
     if (!addr.IsValid())
         throw JSONRPCError(RPC_TYPE_ERROR, "Invalid address");
 
@@ -279,3 +276,4 @@ Value spork(const Array& params, bool fHelp)
         "<value> is a epoch datetime to enable or disable spork"
         + HelpRequiringPassphrase());
 }
+

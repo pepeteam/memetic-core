@@ -28,7 +28,7 @@ leveldb::DB *txdb; // global pointer for LevelDB object instance
 
 static leveldb::Options GetOptions() {
     leveldb::Options options;
-    int nCacheSizeMB = GetArg("-dbcache", 25);
+    int nCacheSizeMB = GetArg("-dbcache", 100);
     options.block_cache = leveldb::NewLRUCache(nCacheSizeMB * 1048576);
     options.filter_policy = leveldb::NewBloomFilterPolicy(10);
     return options;
@@ -80,7 +80,7 @@ CTxDB::CTxDB(const char* pszMode)
     bool fCreate = strchr(pszMode, 'c');
 
     options = GetOptions();
-    options.create_if_missing = fCreate;
+    options.create_if_missing = true;
     options.filter_policy = leveldb::NewBloomFilterPolicy(10);
 
     init_blockindex(options); // Init directory
@@ -224,16 +224,6 @@ bool CTxDB::ReadAddrIndex(uint160 addrHash, std::vector<uint256>& txHashes)
     return Read(make_pair(string("adr"), addrHash), txHashes);
 }
 
-bool CTxDB::WritePepeMessage(uint256 hash, const CPepeMessage& pmsg)
-{
-    return Write(make_pair(string("pepe"), hash), pmsg);
-}
-
-bool CTxDB::ReadPepeMessage(uint256 hash, CPepeMessage& pmsg)
-{
-    return Read(make_pair(string("pepe"), hash), pmsg);
-}
-
 bool CTxDB::ReadTxIndex(uint256 hash, CTxIndex& txindex)
 {
     txindex.SetNull();
@@ -333,58 +323,6 @@ static CBlockIndex *InsertBlockIndex(uint256 hash)
     pindexNew->phashBlock = &((*mi).first);
 
     return pindexNew;
-}
-
-bool CTxDB::LoadPepeMessages()
-{
-    // Lighten log writing
-    LogPrintf("Txdb LoadPepeMessages\n");
-    if(mapPepeMessages.size() > 0) {
-        // Already loaded once in this session.
-        return true;
-    }
-
-    leveldb::Iterator *iterator = pdb->NewIterator(leveldb::ReadOptions());
-    CDataStream ssStartKey(SER_DISK, CLIENT_VERSION);
-    ssStartKey << make_pair(string("pepe"), uint256(0));
-    // LogPrintf("CTxDB::LoadPepeMessages created iterator and ssStartKey\n");
-    iterator->Seek(ssStartKey.str());
-    // LogPrintf("CTxDB::LoadPepeMessages iterator->Seek\n");
-    while(iterator->Valid())
-    {
-        boost::this_thread::interruption_point();
-        // Unpack keys and values.
-        CDataStream ssKey(SER_DISK, CLIENT_VERSION);
-        // LogPrintf("CTxDB::LoadPepeMessages: ssKey.write\n");
-        ssKey.write(iterator->key().data(), iterator->key().size());
-        CDataStream ssValue(SER_DISK, CLIENT_VERSION);
-        // LogPrintf("CTxDB::LoadPepeMessages: ssValue.write\n");
-        ssValue.write(iterator->value().data(), iterator->value().size());
-        string strType;
-        // LogPrintf("CTxDB::LoadPepeMessages: strType\n");
-        ssKey >> strType;
-        // Did we reach the end of the data to read?
-        if (strType != "pepe")
-            break;
-        CPepeMessage pepemessage;
-        // LogPrintf("CTxDB::LoadPepeMessages: ssValue to pepemessage\n");
-        ssValue >> pepemessage;
-
-        uint256 pepeHash = pepemessage.GetHash();
-        // LogPrintf("CTxDB::LoadPepeMessages: mapPepeMessages insert %s\n", pepeHash.ToString());
-        if(mapPepeMessages.count(pepeHash) == 0)
-            mapPepeMessages.insert(make_pair(pepeHash, pepemessage));
-
-        //LogPrintf("CTxDB::LoadPepeMessages: Iterator next\n");
-
-        iterator->Next();
-    }
-
-    delete iterator;
-
-    boost::this_thread::interruption_point();
-
-    return true;
 }
 
 bool CTxDB::LoadBlockIndex()
@@ -500,7 +438,7 @@ bool CTxDB::LoadBlockIndex()
 
     // Verify blocks in the best chain
     int nCheckLevel = GetArg("-checklevel", 1);
-    int nCheckDepth = GetArg( "-checkblocks", 5000);
+    int nCheckDepth = GetArg( "-checkblocks", 500);
     if (nCheckDepth == 0)
         nCheckDepth = 1000000000; // suffices until the year 19000
     if (nCheckDepth > nBestHeight)

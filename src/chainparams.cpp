@@ -3,48 +3,55 @@
 // Copyright (c) 2015 Transfercoin Developer
 // Copyright (c) 2015-2016 PepeCoin Developers
 // Copyright (c) 2016-2018 The PepeCoin Developers
-// Distributed under the MIT/X11 software license, see the accompanying
-// file COPYING or http://www.opensource.org/licenses/mit-license.php.
- 
+
 #include "assert.h"
- 
+
 #include "chainparams.h"
 #include "main.h"
 #include "util.h"
- 
+
 #include <boost/assign/list_of.hpp>
- 
+
 using namespace boost::assign;
- 
+
 struct SeedSpec6 {
     uint8_t addr[16];
     uint16_t port;
 };
- 
+
 #include "chainparamsseeds.h"
- 
+
 //
 // Main network
 //
- 
-// Convert the pnSeeds6 array into usable address objects.
-static void convertSeed6(std::vector<CAddress> &vSeedsOut, const SeedSpec6 *data, unsigned int count)
+
+// Convert the pnSeeds array into usable address objects.
+static void convertSeeds(std::vector<CAddress> &vSeedsOut, const unsigned int *data, unsigned int count, int port)
 {
-    // It'll only connect to one or two seed nodes because once it connects,
-    // it'll get a pile of addresses with newer timestamps.
-    // Seed nodes are given a random 'last seen time' of between one and two
-    // weeks ago.
-    const int64_t nOneWeek = 7*24*60*60;
-    for (unsigned int i = 0; i < count; i++)
+     // It'll only connect to one or two seed nodes because once it connects,
+     // it'll get a pile of addresses with newer timestamps.
+     // Seed nodes are given a random 'last seen time' of between one and two
+     // weeks ago.
+     const int64_t nOneWeek = 7*24*60*60;
+    for (unsigned int k = 0; k < count; ++k)
     {
-        struct in6_addr ip;
-        memcpy(&ip, data[i].addr, sizeof(ip));
-        CAddress addr(CService(ip, data[i].port));
-        addr.nTime = GetTime() - GetRand(nOneWeek) - nOneWeek;
+        struct in_addr ip;
+        unsigned int i = data[k], t;
+        
+        // -- convert to big endian
+        t =   (i & 0x000000ff) << 24u
+            | (i & 0x0000ff00) << 8u
+            | (i & 0x00ff0000) >> 8u
+            | (i & 0xff000000) >> 24u;
+        
+        memcpy(&ip, &t, sizeof(ip));
+        
+        CAddress addr(CService(ip, port));
+        addr.nTime = GetTime()-GetRand(nOneWeek)-nOneWeek;
         vSeedsOut.push_back(addr);
     }
 }
- 
+
 class CMainParams : public CChainParams {
 public:
     CMainParams() {
@@ -59,7 +66,15 @@ public:
         nDefaultPort = 29377;
         nRPCPort = 29376;
         bnProofOfWorkLimit = CBigNum(~uint256(0) >> 16);
- 
+
+        // Build the genesis block. Note that the output of the genesis coinbase cannot
+        // be spent as it did not originally exist in the database.
+        //
+        //CBlock(hash=000001faef25dec4fbcf906e6242621df2c183bf232f263d0ba5b101911e4563, ver=1, hashPrevBlock=0000000000000000000000000000000000000000000000000000000000000000, hashMerkleRoot=12630d16a97f24b287c8c2594dda5fb98c9e6c70fc61d44191931ea2aa08dc90, nTime=1393221600, nBits=1e0fffff, nNonce=164482, vtx=1, vchBlockSig=)
+        //  Coinbase(hash=12630d16a9, nTime=1393221600, ver=1, vin.size=1, vout.size=1, nLockTime=0)
+        //    CTxIn(COutPoint(0000000000, 4294967295), coinbase 00012a24323020466562203230313420426974636f696e2041544d7320636f6d6520746f20555341)
+        //    CTxOut(empty)
+        //  vMerkleTree: 12630d16a9
         const char* pszTimestamp = "March 5, 2016: UN human rights chief backs Apple in FBI encryption row - BBC News";
         std::vector<CTxIn> vin;
         vin.resize(1);
@@ -75,30 +90,9 @@ public:
         genesis.nTime    = 1457184666;
         genesis.nBits    = bnProofOfWorkLimit.GetCompact();
         genesis.nNonce   = 663024;
- 
+
         hashGenesisBlock = genesis.GetHash();
-/*
-		if (false ) {
-		// This will figure out a valid hash and Nonce if you're
-		// creating a different genesis block:
-	    uint256 hashTarget = CBigNum().SetCompact(genesis.nBits).getuint256();
-	    while (genesis.GetHash() > hashTarget)
-	    {
-	        ++genesis.nNonce;
-	        if (genesis.nNonce == 0)
-		        {
-		            printf("NONCE WRAPPED, incrementing time");
-		            ++genesis.nTime;
-		        }
-	         }
-	   }
- 
-        //// debug print
-	      printf("block.GetHash() == %s\n", genesis.GetHash().ToString().c_str());
-	      printf("block.hashMerkleRoot == %s\n", genesis.hashMerkleRoot.ToString().c_str());
-	      printf("block.nTime = %u \n", genesis.nTime);
-	      printf("block.nNonce = %u \n", genesis.nNonce);
-*/
+
         assert(hashGenesisBlock == uint256("0x00008cae6a01358d774087e2daf3b2108252b0b5a440195ffec4fd38f9892272"));
         assert(genesis.hashMerkleRoot == uint256("0xf8d91b2c93bd7222515770b67f20d3380edf8292548daeb3b0ce82fd5764dcac"));
  
@@ -111,10 +105,10 @@ public:
         base58Prefixes[EXT_SECRET_KEY] = list_of(0x04)(0x88)(0xAD)(0xE4).convert_to_container<std::vector<unsigned char> >();;
  
         vSeeds.push_back(CDNSSeedData("seed.kekdaq.com",  "seed.kekdaq.com"));
-	vSeeds.push_back(CDNSSeedData("seed.pepecoin.co",  "seed.pepecoin.co"));
- 
-        convertSeed6(vFixedSeeds, pnSeed6_main, ARRAYLEN(pnSeed6_main));
- 
+	    vSeeds.push_back(CDNSSeedData("seed.pepecoin.co",  "seed.pepecoin.co"));
+        
+        convertSeeds(vFixedSeeds, pnSeed, ARRAYLEN(pnSeed), nDefaultPort);
+
         nPoolMaxTransactions = 3;
         //strSporkKey = "046f78dcf911fbd61910136f7f0f8d90578f68d0b3ac973b5040fb7afb501b5939f39b108b0569dca71488f5bbf498d92e4d1194f6f941307ffd95f75e76869f0e";
         //strMasternodePaymentsPubKey = "046f78dcf911fbd61910136f7f0f8d90578f68d0b3ac973b5040fb7afb501b5939f39b108b0569dca71488f5bbf498d92e4d1194f6f941307ffd95f75e76869f0e";
@@ -123,10 +117,10 @@ public:
         nPOSStartBlock = 9000;
         nRestartPOWBlock = 320000; // when POW restarts
     }
- 
+
     virtual const CBlock& GenesisBlock() const { return genesis; }
     virtual Network NetworkID() const { return CChainParams::MAIN; }
- 
+
     virtual const vector<CAddress>& FixedSeeds() const {
         return vFixedSeeds;
     }
@@ -135,12 +129,12 @@ protected:
     vector<CAddress> vFixedSeeds;
 };
 static CMainParams mainParams;
- 
- 
+
+
 //
 // Testnet
 //
- 
+
 class CTestNetParams : public CMainParams {
 public:
     CTestNetParams() {
@@ -173,7 +167,7 @@ public:
         base58Prefixes[EXT_PUBLIC_KEY] = list_of(0x04)(0x35)(0x87)(0xCF).convert_to_container<std::vector<unsigned char> >();;
         base58Prefixes[EXT_SECRET_KEY] = list_of(0x04)(0x35)(0x83)(0x94).convert_to_container<std::vector<unsigned char> >();;
  
-        convertSeed6(vFixedSeeds, pnSeed6_test, ARRAYLEN(pnSeed6_test));
+        // convertSeed6(vFixedSeeds, pnSeed6_test, ARRAYLEN(pnSeed6_test));
  
         nLastPOWBlock = 5000000;
         nPOSStartBlock = 100;
@@ -182,14 +176,14 @@ public:
     virtual Network NetworkID() const { return CChainParams::TESTNET; }
 };
 static CTestNetParams testNetParams;
- 
- 
+
+
 static CChainParams *pCurrentParams = &mainParams;
- 
+
 const CChainParams &Params() {
     return *pCurrentParams;
 }
- 
+
 void SelectParams(CChainParams::Network network) {
     switch (network) {
         case CChainParams::MAIN:
@@ -203,11 +197,11 @@ void SelectParams(CChainParams::Network network) {
             return;
     }
 }
- 
+
 bool SelectParamsFromCommandLine() {
- 
+    
     bool fTestNet = GetBoolArg("-testnet", false);
- 
+    
     if (fTestNet) {
         SelectParams(CChainParams::TESTNET);
     } else {

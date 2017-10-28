@@ -8,10 +8,10 @@
 // Name of client reported in the 'version' message. Report the same name
 // for both bitcoind and bitcoin-qt, to make it harder for attackers to
 // target servers or GUI users specifically.
-const std::string CLIENT_NAME("PepeCoin-2.5.2.0");
+const std::string CLIENT_NAME("PepeCoin-Memetic-3.0.0.0");
 
 // Client version number
-#define CLIENT_VERSION_SUFFIX   "-KekdaqMT"
+#define CLIENT_VERSION_SUFFIX   "-PepeMeme3.0"
 
 
 // The following part of the code determines the CLIENT_BUILD variable.
@@ -28,13 +28,12 @@ const std::string CLIENT_NAME("PepeCoin-2.5.2.0");
 //   * otherwise, use v[maj].[min].[rev].[build]-unk
 // finally CLIENT_VERSION_SUFFIX is added
 
-
 // First, include build.h if requested
 #ifdef HAVE_BUILD_INFO
 #    include "build.h"
 #endif
 
-// git will put "#define GIT_ARCHIVE 1" on the next line inside archives.
+// git will put "#define GIT_ARCHIVE 1" on the next line inside archives. 
 #define GIT_ARCHIVE 1
 #ifdef GIT_ARCHIVE
 #    define GIT_COMMIT_ID "61413"

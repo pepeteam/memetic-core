@@ -76,23 +76,6 @@ bool CWalletDB::ReadStealthAddress(CStealthAddress& sxAddr)
     return Read(std::make_pair(std::string("sxAddr"), sxAddr.scan_pubkey), sxAddr);
 }
 
-bool CWalletDB::WritemastertoadConfig(std::string sAlias, const CmastertoadConfig& nodeConfig)
-{
-    nWalletDBUpdated++;
-    return Write(std::make_pair(std::string("mastertoad"), sAlias), nodeConfig, true);
-}
-
-bool CWalletDB::ReadmastertoadConfig(std::string sAlias, CmastertoadConfig& nodeConfig)
-{
-    return Read(std::make_pair(std::string("mastertoad"), sAlias), nodeConfig);
-}
-
-bool CWalletDB::ErasemastertoadConfig(std::string sAlias)
-{
-    nWalletDBUpdated++;
-    return Erase(std::make_pair(std::string("mastertoad"), sAlias));
-}
-
 bool CWalletDB::WriteKey(const CPubKey& vchPubKey, const CPrivKey& vchPrivKey, const CKeyMetadata& keyMeta)
 {
     nWalletDBUpdated++;
@@ -385,7 +368,7 @@ ReadKeyValue(CWallet* pwallet, CDataStream& ssKey, CDataStream& ssValue,
         {
             string strAddress;
             ssKey >> strAddress;
-            ssValue >> pwallet->mapAddressBook[CBitcoinAddress(strAddress).Get()];
+            ssValue >> pwallet->mapAddressBook[CPepeCoinAddress(strAddress).Get()];
         }
         else if (strType == "tx")
         {
@@ -393,7 +376,7 @@ ReadKeyValue(CWallet* pwallet, CDataStream& ssKey, CDataStream& ssValue,
             ssKey >> hash;
             CWalletTx& wtx = pwallet->mapWallet[hash];
             ssValue >> wtx;
-	    if (!(wtx.CheckTransaction() && (wtx.GetHash() == hash)))
+            if (!(wtx.CheckTransaction() && (wtx.GetHash() == hash)))
                 return false;
 
             // Undo serialize changes in 31600
@@ -631,14 +614,6 @@ ReadKeyValue(CWallet* pwallet, CDataStream& ssKey, CDataStream& ssValue,
         {
             ssValue >> pwallet->nOrderPosNext;
         }
-        else if (strType == "mastertoad")
-        {
-            std::string sAlias;
-            ssKey >> sAlias;
-            CmastertoadConfig mastertoadConfig;
-            ssValue >> mastertoadConfig;
-            pwallet->mapMymastertoads.insert(make_pair(sAlias, mastertoadConfig));
-        }
     } catch (...)
     {
         return false;
@@ -751,6 +726,12 @@ DBErrors CWalletDB::LoadWallet(CWallet* pwallet)
     if (wss.fAnyUnordered)
         result = ReorderTransactions(pwallet);
 
+    pwallet->laccentries.clear();
+    ListAccountCreditDebit("*", pwallet->laccentries);
+    BOOST_FOREACH(CAccountingEntry& entry, pwallet->laccentries) {
+        pwallet->wtxOrdered.insert(make_pair(entry.nOrderPos, CWallet::TxPair((CWalletTx*)0, &entry)));
+    }
+ 
     return result;
 }
 
