@@ -204,6 +204,7 @@ public:
         in_data = false;
         nHdrPos = 0;
         nDataPos = 0;
+	nTime = 0;
     }
 
     bool complete() const
