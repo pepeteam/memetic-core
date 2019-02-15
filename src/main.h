@@ -31,7 +31,7 @@
 class CValidationState;
 
 #define START_MASTERNODE_PAYMENTS_TESTNET 1496987073 // June 9, 2017 2:20:04 AM GMT
-#define START_MASTERNODE_PAYMENTS 1499579073
+#define START_MASTERNODE_PAYMENTS 1499579073  //  Sunday, July 9, 2017 5:44:33 AM GMT
 
 static const int64_t DARKSEND_COLLATERAL = (5000*COIN);
 static const int64_t DARKSEND_FEE = (0.0001*COIN);
@@ -92,6 +92,7 @@ static const int64_t PEPE_SO_SWAP_GRANT = 888888 * COIN;
 static const int64_t PEPE_STAKE_CONF_HEIGHT = 1021111;
 static const int64_t PEPE_STAKE_CONF_TWEAK = 1177777;
 static const int64_t PEPE_STAKEONLY_HEIGHT = 1700000;
+static const int64_t PEPE_DIFFIMPROVE_HEIGHT = 1830000;
 
 /** The maximum allowed size for a serialized block, in bytes (network rule) */
 static const unsigned int MAX_BLOCK_SIZE = 20000000;
@@ -110,7 +111,7 @@ static const unsigned int MAX_TX_SIGOPS = MAX_BLOCK_SIGOPS/5;
 /** The maximum number of orphan transactions kept in memory */
 static const unsigned int MAX_ORPHAN_TRANSACTIONS = MAX_BLOCK_SIZE/100;
 /** Default for -maxorphanblocks, maximum number of orphan blocks kept in memory */
-static const unsigned int DEFAULT_MAX_ORPHAN_BLOCKS = 4000;
+static const unsigned int DEFAULT_MAX_ORPHAN_BLOCKS = 250;
 /** The maximum number of entries in an 'inv' protocol message */
 static const unsigned int MAX_INV_SZ = 50000;
 /** Fees smaller than this (in satoshi) are considered zero fee (for transaction creation) */

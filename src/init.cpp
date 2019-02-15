@@ -198,6 +198,7 @@ std::string HelpMessage()
     strUsage += "  -seednode=<ip>         " + _("Connect to a node to retrieve peer addresses, and disconnect") + "\n";
     strUsage += "  -synctimeout=<n>       " + _("Specify block download timeout in seconds (default: 60)") + "\n";    
     strUsage += "  -syncspan=<n>          " + _("Specify last block age in minutes after which node goes into syncing mode (default: 90)") + "\n";        
+    strUsage += "  -txrelayexpiration=<n> " + _("Specify age in minutes after which transactions expire from the relay pool (default: 180)") + "\n";            
     strUsage += "  -externalip=<ip>       " + _("Specify your own public address") + "\n";
     strUsage += "  -onlynet=<net>         " + _("Only connect to nodes in network <net> (IPv4, IPv6 or Tor)") + "\n";
     strUsage += "  -discover              " + _("Discover own IP address (default: 1 when listening and no -externalip)") + "\n";
