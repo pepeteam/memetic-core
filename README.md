@@ -80,8 +80,10 @@ The strip command removes debugging data and lessens exectuable size.
 >sudo apt-get install libminiupnpc-dev libgmp3-dev libdb-dev libdb++-dev libgmp3-dev libdb++-dev libgmp3-dev lzma-dev libssl1.0-dev zlib1g-dev zlib1g libgmp-dev
 >	
 >git clone https://github.com/pepeteam/pepecoin.git
+>
 >cd pepecoin/src
->make -f makefile.unix USE_UPNP=-
+>
+>make -f makefile.unix USE_UPNP=-1
 >
 >strip pepecoind
 >
