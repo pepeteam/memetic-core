@@ -1,6 +1,6 @@
 TEMPLATE = app
 TARGET = pepecoin-qt
-VERSION = 3.1.0.0
+VERSION = 3.1.1.0
 INCLUDEPATH += src src/json src/qt src/qt/plugins/mrichtexteditor
 QT += network printsupport
 DEFINES += ENABLE_WALLET
