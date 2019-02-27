@@ -269,6 +269,7 @@ public:
     bool fDarkSendMaster;
     CSemaphoreGrant grantOutbound;
     int nRefCount;
+    CCriticalSection cs_nRefCount;
     NodeId id;
 protected:
 
@@ -417,12 +418,14 @@ public:
 
     CNode* AddRef()
     {
+        LOCK(cs_nRefCount);
         nRefCount++;
         return this;
     }
 
     void Release()
     {
+        LOCK(cs_nRefCount);
         nRefCount--;
     }
 

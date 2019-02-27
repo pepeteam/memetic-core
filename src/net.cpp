@@ -875,7 +875,7 @@ void ThreadSocketHandler()
         //
         vector<CNode*> vNodesCopy;
         {
-            //LOCK(cs_vNodes);
+            LOCK(cs_vNodes);
             vNodesCopy = vNodes;
             BOOST_FOREACH(CNode* pnode, vNodesCopy)
                 pnode->AddRef();
@@ -978,7 +978,7 @@ void ThreadSocketHandler()
             BOOST_FOREACH(CNode* pnode, vNodesCopy)
                 pnode->Release();
         }
-    MilliSleep(2); // niceness
+    MilliSleep(1); // niceness
     }
 }
 
@@ -1568,7 +1568,7 @@ void ThreadMessageHandler(int ncore)
         }
 
         // niceness
-        MilliSleep(10);
+        MilliSleep(2);
     }
 }
 

@@ -5062,7 +5062,7 @@ bool SendMessages(CNode* pto, bool fSendTrickle)
         // Detect stalled peers.
         int nSyncTimeout = GetArg("-synctimeout", 60);
         int64_t tNow = GetTimeMillis();
-        if (pto->tGetblocks) {
+        if (pto->tGetblocks && IsSyncing()) {
             if (pto->tBlockRecving > pto->tBlockRecved) {
                 if (tNow-pto->tBlockRecving > nSyncTimeout * 1000) {
                     LogPrintf("sync peer=%d: Block download stalled for over %d seconds.\n", pto->id, nSyncTimeout);
