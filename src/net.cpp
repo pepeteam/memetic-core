@@ -1519,9 +1519,15 @@ void ThreadMessageHandler(int ncore)
                 if (pnode == pnodeSync)
                     fHaveSyncNode = true;
             }
+
+            // check if one of the other threads has the sync node
+            BOOST_FOREACH(CNode* pnode, vNodesFullSet) {
+                if(pnode == pnodeSync)
+                    fHaveSyncNode = true;
+            }
         }
 
-        if (!fHaveSyncNode)
+        if (!fHaveSyncNode && IsSyncing()) // Only call this if IsSyncing is true
             StartSync(vNodesCopy);
 
         // Poll the connected nodes for messages

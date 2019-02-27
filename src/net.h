@@ -533,9 +533,11 @@ public:
         ssSend.GetAndClear(*it);
         nSendSize += (*it).size();
 
+        // Don't attempt optimistic write here, because this may be called from one of the
+        // message handling threads.  Leave it to be processed by the socket handling thread and avoid potential lock train.
         // If write queue empty, attempt "optimistic write"
-        if (it == vSendMsg.begin())
-            SocketSendData(this);
+        //if (it == vSendMsg.begin())
+        //    SocketSendData(this);
 
         LEAVE_CRITICAL_SECTION(cs_vSend);
     }
