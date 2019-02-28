@@ -1772,7 +1772,7 @@ void StartNode(boost::thread_group& threadGroup)
 
     // Process messages
     unsigned int nmsgthreads = boost::thread::hardware_concurrency();
-    unsigned int nMessagecorelimit = GetArg("-messagecorelimit", 64);
+    unsigned int nMessagecorelimit = GetArg("-messagecorelimit", 1);
     if(nMessagecorelimit < nmsgthreads)
     {
         nMessageCores = nMessagecorelimit;
