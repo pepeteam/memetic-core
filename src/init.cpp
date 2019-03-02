@@ -49,7 +49,7 @@ bool fConfChange;
 bool fMinimizeCoinAge;
 unsigned int nNodeLifespan;
 unsigned int nDerivationMethodIndex;
-unsigned int nMinerSleep;
+unsigned int n;
 bool fUseFastIndex;
 bool fOnlyTor = false;
 
@@ -312,7 +312,6 @@ std::string HelpMessage()
     strUsage += "  -leveldbcache-<n>           " + _("Size in MB of the database that leveldb will cache in memory.  Can result in dramatic performance improvement at the expense of RAM usage.  (Default: 100)") + "\n";
 
 
-minersleep
     return strUsage;
 }
 
