@@ -302,6 +302,7 @@ std::string HelpMessage()
     strUsage += "\n" + _("Additional PepeCoin options:") + "\n";
     strUsage += _(" Staking Options:") + "\n";
     strUsage += "  -blockthrottle=<n>          " + _("Milliseconds to wait after finding a stake block before broadcasting (default: 5000)") + "\n";
+    strUsage += "  -minersleep=<n>          " + _("Milliseconds to wait after trying a stake input computation, unlisted option from Blackcoin  (default: 500)") + "\n";
     strUsage += _(" Multicore Message Handling:") + "\n";
     strUsage += "  -messagecorelimit=<n>       " + _("Limit number of cores to use for message handling threads, the default is more than most systems to allow use of all cores by default (default: 64)") + "\n";
     strUsage += _(" LevelDb Options:") + "\n";
@@ -310,6 +311,8 @@ std::string HelpMessage()
     strUsage += "  -leveldbmaxopenfiles=<n>    " + _("Max open files at a time for leveldb.  Can improve performance as block index/tx index grows, but your OS may have a limit. (Default:1000)") + "\n";
     strUsage += "  -leveldbcache-<n>           " + _("Size in MB of the database that leveldb will cache in memory.  Can result in dramatic performance improvement at the expense of RAM usage.  (Default: 100)") + "\n";
 
+
+minersleep
     return strUsage;
 }
 
