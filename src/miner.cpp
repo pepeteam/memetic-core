@@ -534,6 +534,7 @@ bool CheckStake(CBlock* pblock, CWallet& wallet)
     return true;
 }
 
+static int64_t nBlockThrottle = GetArg("-blockthrottle", 5000); // make this a static as we only need to load it once
 void ThreadStakeMiner(CWallet *pwallet)
 {
     SetThreadPriority(THREAD_PRIORITY_LOWEST);
@@ -544,9 +545,11 @@ void ThreadStakeMiner(CWallet *pwallet)
     CReserveKey reservekey(pwallet);
 
     bool fTryToSync = true;
-
-    while (true)
+    // Moved the check for 3 or more connections and up to date blockchain out of the main staking loop
+    while(true)
     {
+        boost::this_thread::interruption_point();
+        
         while (pwallet->IsLocked())
         {
             nLastCoinStakeSearchInterval = 0;
@@ -570,6 +573,14 @@ void ThreadStakeMiner(CWallet *pwallet)
             }
         }
 
+        break;
+    }
+
+    // We have 3 or more connections and are caught up on the blockchain, so start the staking loop
+    while (true)
+    {
+        boost::this_thread::interruption_point();
+
         //
         // Create new block
         //
@@ -587,7 +598,6 @@ void ThreadStakeMiner(CWallet *pwallet)
             // Also helps throttle lots of inputs so they aren't all hitting at once
             // in rapid fire succession and generating lots of ? conflicted stakes.
             // 5 second default.
-            int64_t nBlockThrottle = GetArg("-blockthrottle", 5000);
             MilliSleep(nBlockThrottle);
             CheckStake(pblock.get(), *pwallet);
             SetThreadPriority(THREAD_PRIORITY_LOWEST);

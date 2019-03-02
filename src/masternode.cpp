@@ -37,7 +37,7 @@ void ProcessMasternodeConnections(){
     {
         //if it's our masternode, let it be
         if(darkSendPool.submittedToMasternode == pnode->addr) continue;
-
+        
         if(pnode->fDarkSendMaster){
             LogPrintf("Closing masternode connection %s \n", pnode->addr.ToString().c_str());
             pnode->CloseSocketDisconnect();
@@ -47,6 +47,8 @@ void ProcessMasternodeConnections(){
 
 void ProcessMessageMasternode(CNode* pfrom, std::string& strCommand, CDataStream& vRecv)
 {
+
+    if(fLiteMode) return;
 
     if (strCommand == "dsee") { //DarkSend Election Entry
         if(fLiteMode) return; //disable all darksend/masternode related functionality

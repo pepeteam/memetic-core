@@ -1357,6 +1357,13 @@ void CDarkSendPool::ClearLastMessage()
 //
 bool CDarkSendPool::DoAutomaticDenominating(bool fDryRun, bool ready)
 {
+    // check if enabled first thing so we don't waste time acquiring a lock
+    if(!fEnableDarksend) {
+        if(fDebug) LogPrintf("CDarkSendPool::DoAutomaticDenominating - Darksend is disabled\n");
+        strAutoDenomResult = _("Darksend is disabled.");
+        return false;
+    }
+
     LOCK(cs_darksend);
 
     if(IsInitialBlockDownload()) return false;
@@ -1367,11 +1374,6 @@ bool CDarkSendPool::DoAutomaticDenominating(bool fDryRun, bool ready)
     if(pindexBest->nHeight - cachedLastSuccess < minBlockSpacing) {
         LogPrintf("CDarkSendPool::DoAutomaticDenominating - Last successful darksend action was too recent\n");
         strAutoDenomResult = _("Last successful darksend action was too recent.");
-        return false;
-    }
-    if(!fEnableDarksend) {
-        if(fDebug) LogPrintf("CDarkSendPool::DoAutomaticDenominating - Darksend is disabled\n");
-        strAutoDenomResult = _("Darksend is disabled.");
         return false;
     }
 

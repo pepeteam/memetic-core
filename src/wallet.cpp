@@ -768,8 +768,6 @@ bool CWallet::AddToWallet(const CWalletTx& wtxIn, bool fFromLoadWallet)
         }
 
         fCachedBalanceNeedsUpdating = true;
-        nCachedBalance = 0;
-
     }
     return true;
 }

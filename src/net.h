@@ -219,6 +219,7 @@ public:
 class CNode
 {
 public:
+    int ncore;
     // socket
     uint64_t nServices;
     SOCKET hSocket;
@@ -321,6 +322,7 @@ public:
 
     CNode(SOCKET hSocketIn, CAddress addrIn, std::string addrNameIn = "", bool fInboundIn=false) : ssSend(SER_NETWORK, INIT_PROTO_VERSION), setAddrKnown(5000)
     {
+        ncore = -1;
         nServices = 0;
         hSocket = hSocketIn;
         nRecvVersion = INIT_PROTO_VERSION;
@@ -533,8 +535,6 @@ public:
         ssSend.GetAndClear(*it);
         nSendSize += (*it).size();
 
-        // Don't attempt optimistic write here, because this may be called from one of the
-        // message handling threads.  Leave it to be processed by the socket handling thread and avoid potential lock train.
         // If write queue empty, attempt "optimistic write"
         //if (it == vSendMsg.begin())
         //    SocketSendData(this);
@@ -772,7 +772,9 @@ inline void RelayInventory(const CInv& inv)
     {
         LOCK(cs_vNodes);
         BOOST_FOREACH(CNode* pnode, vNodes)
+        {
             pnode->PushInventory(inv);
+        }
     }
 }
 
