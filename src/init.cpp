@@ -49,7 +49,7 @@ bool fConfChange;
 bool fMinimizeCoinAge;
 unsigned int nNodeLifespan;
 unsigned int nDerivationMethodIndex;
-unsigned int n;
+unsigned int nMinerSleep;
 bool fUseFastIndex;
 bool fOnlyTor = false;
 
