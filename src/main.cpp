@@ -1828,7 +1828,7 @@ void DropNonRespondingSyncPeer()
     BOOST_FOREACH(CNode* pnode, vNodes) {
         if(pnode->fStartSync && !pnode->fDisconnect && IsSyncing())
         {            
-            int nSyncTimeout = GetArg("-synctimeout", 10);
+            int nSyncTimeout = GetArg("-synctimeout", 5);
             int64_t tNow = GetTimeMillis();
             if (pnode->tGetblocks) {
                 if (pnode->tGetblocks > pnode->tBlockInvs && tNow-pnode->tGetblocks > nSyncTimeout * 1000) {
