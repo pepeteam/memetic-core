@@ -12,6 +12,10 @@ Makefile.Debug
 Makefile.release
 pepecoin-qt_plugin_import.cpp
 
+src/secp256k1/build-aux/
+src/qt/locale/bitcoin_en.qm
+
+
 #################
 ## Eclipse
 #################
