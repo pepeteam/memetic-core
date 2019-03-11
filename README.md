@@ -102,13 +102,13 @@ Remove libssl1.0-dev and replace with libssl-dev in the apt-get list to compile 
 >sudo apt-get install build-essential libtool autotools-dev automake pkg-config libevent-dev bsdmainutils libboost-system-dev libboost-filesystem-dev libboost-chrono-dev libboost-program-options-dev libboost-test-dev libboost-thread-dev libminiupnpc-dev libgmp3-dev libdb-dev libdb++-dev libgmp3-dev lzma-dev libssl1.0-dev zlib1g-dev zlib1g libgmp-dev
 >
 >git clone https://github.com/pepeteam/pepecoin.git
-
+>
 >cd pepecoin 
-
+>
 >qmake
-
+>
 >make -j2 -f Makefile
-
+>
 --------------------
 # Links
 
