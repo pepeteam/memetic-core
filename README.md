@@ -102,11 +102,12 @@ Remove libssl1.0-dev and replace with libssl-dev in the apt-get list to compile 
 >sudo apt-get install build-essential libtool autotools-dev automake pkg-config libevent-dev bsdmainutils libboost-system-dev libboost-filesystem-dev libboost-chrono-dev libboost-program-options-dev libboost-test-dev libboost-thread-dev libminiupnpc-dev libgmp3-dev libdb-dev libdb++-dev libgmp3-dev lzma-dev libssl1.0-dev zlib1g-dev zlib1g libgmp-dev
 >
 >git clone https://github.com/pepeteam/pepecoin.git
+
 >cd pepecoin 
+
 >qmake
+
 >make -j2 -f Makefile
->
->strip pepecoin-qt
 
 --------------------
 # Links
@@ -144,6 +145,8 @@ https://kekdaq.com
 
 [CoinMarketCap](https://coinmarketcap.com/currencies/pepecoin/)
 
+[CoinGekko](https://www.coingecko.com/en/coins/memetic)
+
 [WorldCoinIndex](https://www.worldcoinindex.com/coin/memetic)
 
 [CryptoCompare](https://www.cryptocompare.com/coins/meme/charts/BTC)
@@ -151,8 +154,6 @@ https://kekdaq.com
 [BitInfoCharts](https://bitinfocharts.com/markets/bittrex/meme-btc-1m.html)
 
 [CryptoCoinView](https://cryptocoinview.com/MEME)
-
-[CoinGekko](https://www.coingecko.com/en/coins/memetic)
 
 [CoinLib](https://coinlib.io/coin/MEME/Pepe+Memetic)
 
