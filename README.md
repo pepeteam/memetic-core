@@ -131,6 +131,8 @@ https://kekdaq.com
 
 [Upbit (ASIA)](https://upbit.com/exchange?code=CRIX.UPBIT.BTC-MEME) -- Popular South Korean exchange
 
+[Changenow (Worldwide)](https://changenow.io/) -- Shapeshift type service accepting cc purchases
+
 [Coinswitch (Worldwide)](https://coinswitch.co/) -- Shapeshift type service
 
 [Coinexchange (EU)](https://www.coinexchange.io/market/MEME/BTC)
