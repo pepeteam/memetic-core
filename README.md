@@ -60,42 +60,31 @@ See [bitcointalk.org](https://bitcointalk.org/index.php?topic=1391598.0) post fo
  
 ### Windows Wallet
 
-https://github.com/pepeteam/pepecoin/releases
+[https://github.com/pepeteam/pepecoin/releases](https://github.com/pepeteam/pepecoin/releases)
 
 
 #### Linux Builds:
 
 PepeCoin uses libsecp256k1, libgmp, Boost1.55+, Openssl1.01, Berkeley DB 4.8+, and QT5 to compile.
 
-Ubuntu 18.04+ or Debian 9+ is recommended. See the RELEASES tab for Windows wallets. OSX coming soon.
-
-The strip command removes debugging data and lessens exectuable size.
+Ubuntu 18.04+ or Debian 9+ is recommended.
 
 #### Instructions for Building Command Line Daemon
 >
-
 >sudo apt-get install build-essential libtool autotools-dev automake pkg-config libevent-dev bsdmainutils libboost-system-dev libboost-filesystem-dev libboost-chrono-dev libboost-program-options-dev libboost-test-dev libboost-thread-dev libminiupnpc-dev libgmp3-dev libdb-dev libdb++-dev libgmp3-dev lzma-dev libssl1.0-dev zlib1g-dev zlib1g libgmp-dev 
 >	
 >git clone https://github.com/pepeteam/pepecoin.git
 >
 >cd pepecoin/src
 >
->make -f makefile.unix
->
-> OR (if you intend to open ports yourself)
->
->make -f makefile.unix USE_UPNP=0
+>make -f makefile.unix USE_UPNP=-
 >
 >strip pepecoind
 >
 
-Remove libssl1.0-dev and replace with libssl-dev in the apt-get list to compile on older versions like 16.04.
-
 #### Instructions for Building GUI Wallet
 
->sudo apt-get install libqt5gui5 libqt5core5a libqt5dbus5 qttools5-dev qttools5-dev-tools libprotobuf-dev protobuf-compiler qt5-default 
->
->sudo apt-get install build-essential libtool autotools-dev automake pkg-config libevent-dev bsdmainutils libboost-system-dev libboost-filesystem-dev libboost-chrono-dev libboost-program-options-dev libboost-test-dev libboost-thread-dev libminiupnpc-dev libgmp3-dev libdb-dev libdb++-dev libgmp3-dev lzma-dev libssl1.0-dev zlib1g-dev zlib1g libgmp-dev
+>sudo apt-get install libqt5gui5 libqt5core5a libqt5dbus5 qttools5-dev qttools5-dev-tools libprotobuf-dev protobuf-compiler qt5-default build-essential libtool autotools-dev automake pkg-config libevent-dev bsdmainutils libboost-system-dev libboost-filesystem-dev libboost-chrono-dev libboost-program-options-dev libboost-test-dev libboost-thread-dev libminiupnpc-dev libgmp3-dev libdb-dev libdb++-dev libgmp3-dev lzma-dev libssl1.0-dev zlib1g-dev zlib1g libgmp-dev
 >
 >git clone https://github.com/pepeteam/pepecoin.git
 >
@@ -103,7 +92,7 @@ Remove libssl1.0-dev and replace with libssl-dev in the apt-get list to compile 
 >
 >qmake
 >
->make -j2 -f Makefile
+>make -j2 -f Makefile USE_UPNP=0
 >
 --------------------
 # Links
@@ -117,7 +106,7 @@ Remove libssl1.0-dev and replace with libssl-dev in the apt-get list to compile 
 ### Websites
 https://memetic.ai
 
-https://pepecoin.co
+https://pepecoin.net
 
 https://kekdaq.com
 
@@ -169,9 +158,10 @@ https://kekdaq.com
 **Nodes**
 addnode=seed.pepecoin.net
 
+addnode=seed.memetic.ai
+
 addnode=seed.kekdaq.com
 
-addnode=seed.memetic.ai
 
 ![pepecoin-256](https://i.imgur.com/xnSJvT9.jpg  "pepecoin-256")
 
@@ -179,40 +169,37 @@ addnode=seed.memetic.ai
 ------------------
 License
 ------------------
->##### Memetic / PepeCoin / Kekdaq are open source softwares released under the GNU GPL v3 license.  
->
->Basically, you must also release the source code of your project if you use code from ours.
->
->Copyright (c) 2009-2010 Satoshi Nakamoto
->Copyright (c) 2009-2012 The Bitcoin Developers
->Copyright (c) 2012 Litecoin Developers
->Copyright (c) 2013 Peercoin Developers
->Copyright (c) 2014 DarkCoin Developers
->Copyright (c) 2014 BlackCoin Developers
->Copyright (c) 2014 Digibyte Developers
->Copyright (c) 2014 DashCoin Developers
->Copyright (c) 2015 Transfercoin Developers
->Copyright (c) 2015-2016 PepeCoin Developers
->Copyright (c) 2015-2016 Memetic Developers
->Copyright (c) 2017-2019 Memetic / PepeCoin Developers
->
->Permission is hereby granted, free of charge, to any person obtaining a copy
->of this software and associated documentation files (the "Software"), to deal
->in the Software without restriction, including without limitation the rights
->to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
->copies of the Software, and to permit persons to whom the Software is
->furnished to do so, subject to the following conditions:
->
->THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
->IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
->FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
->AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
->LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
->OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
->THE SOFTWARE.
->
->The above copyright notices and this permission notice shall be included in
->all copies or substantial portions of the Software.
->
-> See LICENSE file for more info.
+##### Memetic / PepeCoin / Kekdaq are open source softwares released under the GNU GPL v2 license.  
+Copyright (c) 2009-2010 Satoshi Nakamoto
+Copyright (c) 2009-2012 The Bitcoin Developers
+Copyright (c) 2012 Litecoin Developers
+Copyright (c) 2013 Peercoin Developers
+Copyright (c) 2014 DarkCoin Developers
+Copyright (c) 2014 BlackCoin Developers
+Copyright (c) 2014 Digibyte Developers
+Copyright (c) 2014 DashCoin Developers
+Copyright (c) 2015 Transfercoin Developers
+Copyright (c) 2015-2016 PepeCoin Developers
+Copyright (c) 2015-2016 Memetic Developers
+Copyright (c) 2017-2019 Memetic / PepeCoin Developers
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
+
+The above copyright notices and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+ See LICENSE file for more info.
 ------------------
