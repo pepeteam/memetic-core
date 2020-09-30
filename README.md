@@ -82,6 +82,8 @@ Ubuntu 18.04+ or Debian 9+ is recommended.
 >strip pepecoind
 >
 
+Or you can use the shell script at https://gist.github.com/cryptopepe/82b59b51680e13e5f1e08224bfdd71fc
+
 #### Instructions for Building GUI Wallet
 
 >sudo apt-get install libqt5gui5 libqt5core5a libqt5dbus5 qttools5-dev qttools5-dev-tools libprotobuf-dev protobuf-compiler qt5-default build-essential libtool autotools-dev automake pkg-config libevent-dev bsdmainutils libboost-system-dev libboost-filesystem-dev libboost-chrono-dev libboost-program-options-dev libboost-test-dev libboost-thread-dev libminiupnpc-dev libgmp3-dev libdb-dev libdb++-dev libgmp3-dev lzma-dev libssl1.0-dev zlib1g-dev zlib1g libgmp-dev
